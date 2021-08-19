@@ -1,0 +1,21 @@
+{
+  "name": "superfile",
+  "version": "1.0.0",
+  "description": "What's better than a file input ? A superfile input",
+  "main": "superfile",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "serve": "http-server"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/lekoala/superfile"
+  },
+  "keywords": [
+    "file",
+    "upload",
+    "es6"
+  ],
+  "author": "LeKoala",
+  "license": "MIT"
+}
