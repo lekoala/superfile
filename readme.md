@@ -35,7 +35,7 @@ You can add a clear button and a preview image if you want.
 
 ## Demo
 
-https://codepen.io/lekoalabe/pen/ExWYEqx
+https://codepen.io/lekoalabe/pen/wvdVoNa
 
 ## I need more
 
