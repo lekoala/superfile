@@ -12,6 +12,7 @@ An ES6 class to improve uploaders. Works great with Bootstrap but works with any
 - Clear uploads
 - Crop to ratio
 - Drop support
+- Multiple/directory upload support
 
 ## How to use
 
@@ -59,6 +60,7 @@ You can use the regular [`accept` attribute](https://developer.mozilla.org/en-US
 
 - Hide preview element when no src is set
 - Hide inputs until ready (avoids fouc)
+- Change input background color when dropping files
 
 ```css
 img:not([src]) {
@@ -66,6 +68,9 @@ img:not([src]) {
 }
 .superfile:not(.superfile-ready) {
     visibility: hidden;
+}
+.superfile-drag input {
+    background: palegoldenrod;
 }
 ```
 

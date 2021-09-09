@@ -45,7 +45,7 @@ class Superfile {
 
     // listeners
     this.inputElement.addEventListener("change", (ev) => {
-      this.processImage(() => {
+      this.processFiles(() => {
         this.showPreview();
       });
     });
@@ -115,15 +115,27 @@ class Superfile {
   }
 
   showPreview() {
-    if (this.previewElement) {
-      this.holderElement.classList.add(PREVIEW_ACTIVE_CLASS);
-      if (this.clearElement && this.clearElement.dataset.originalDisplay) {
-        this.clearElement.style.display = this.clearElement.dataset.originalDisplay;
+    if (!this.previewElement) {
+      return;
+    }
+    this.holderElement.classList.add(PREVIEW_ACTIVE_CLASS);
+    if (this.clearElement && this.clearElement.dataset.originalDisplay) {
+      this.clearElement.style.display = this.clearElement.dataset.originalDisplay;
+    }
+    // Use data from file input if available
+    let previewHolder = this.previewElement.parentElement;
+    for (let i = 0; i < this.inputElement.files.length; i++) {
+      let file = this.inputElement.files[i];
+      if (!file.type.match(/image.*/)) {
+        continue;
       }
-      // Use data from file input if available
-      if (this.inputElement.files[0]) {
-        this.previewElement.src = URL.createObjectURL(this.inputElement.files[0]);
+      let previewEl = previewHolder.querySelectorAll("." + PREVIEW_CLASS)[i];
+      if (!previewEl) {
+        previewEl = this.previewElement.cloneNode(true);
+
+        previewHolder.appendChild(previewEl);
       }
+      previewEl.src = URL.createObjectURL(file);
     }
   }
 
@@ -321,7 +333,14 @@ class Superfile {
     // We cannot manipulate the FileList directly
     // @link https://developer.mozilla.org/en-US/docs/Web/API/DataTransfer
     let container = new DataTransfer();
-    container.items.add(resizedFile);
+    for (let i = 0; i < this.inputElement.files.length; i++) {
+      let fileItem = this.inputElement.files[i];
+      if (fileItem.name === file.name) {
+        container.items.add(resizedFile);
+      } else {
+        container.items.add(fileItem);
+      }
+    }
     this.inputElement.files = container.files;
 
     callback();
@@ -330,13 +349,15 @@ class Superfile {
   /**
    * @param {Function} callback
    */
-  processImage(callback) {
-    let file = this.inputElement.files[0];
-    if (!file) {
+  processFiles(callback) {
+    let files = this.inputElement.files;
+    if (!files.length) {
       callback();
       return;
     }
-    this.handleResizeImage(file, callback);
+    for (let i = 0; i < files.length; i++) {
+      this.handleResizeImage(files[i], callback);
+    }
   }
 }
 

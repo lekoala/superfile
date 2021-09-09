@@ -74,6 +74,18 @@
         max-width: 75%;
         left: 12.5%;
       }
+      .gallery-preview {
+        margin:20px auto;
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        grid-gap: 20px;
+        align-items: center;
+      }
+      .gallery-preview .superfile-preview {
+        border: 1px solid #ccc;
+        box-shadow: 2px 2px 6px 0px rgba(0, 0, 0, 0.3);
+        max-width: 100%;
+      }
     </style>
   </head>
   <body>
@@ -129,6 +141,26 @@
             </div>
             <img src="https://randomuser.me/api/portraits/men/36.jpg" class="img-fluid superfile-preview" />
           </div>
+        </div>
+
+        <div class="mb-3 superfile">
+          <label for="formFileMultiple" class="form-label">Multiple file input example (checkout the nice gallery layout!)</label>
+          <div class="input-group">
+            <input class="form-control" type="file" multiple id="formFileMultiple" accept="image/*" name="formFileMultiple[]" />
+            <button class="btn btn-outline-secondary superfile-clear" type="button">Clear</button>
+          </div>
+          <div class="gallery-preview">
+            <img class="img-fluid superfile-preview" />
+          </div>
+        </div>
+
+        <div class="mb-3 superfile">
+          <label for="formFileDirectory" class="form-label">Directory file input example</label>
+          <div class="input-group">
+            <input class="form-control" type="file" multiple directory webkitdirectory id="formFileDirectory" accept="image/*" name="formFileDirectory[]" />
+            <button class="btn btn-outline-secondary superfile-clear" type="button">Clear</button>
+          </div>
+          <img class="img-fluid superfile-preview" />
         </div>
 
         <button class="btn btn-primary" type="submit">Submit form</button>
