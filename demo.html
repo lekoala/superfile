@@ -15,12 +15,18 @@
       .superfile:not(.superfile-ready) {
         visibility: hidden;
       }
+      .superfile-drag input {
+        background: palegoldenrod;
+      }
       .avatar {
         width: 100px;
         height: 100px;
         background: #ccc;
         border-radius: 100px;
         position: relative;
+      }
+      .avatar.superfile-drag {
+        background-color: palegoldenrod;
       }
       .avatar .superfile-clear {
         position: absolute;
@@ -49,6 +55,9 @@
       .avatar .superfile-preview {
         z-index: 0;
         border-radius: 500px;
+      }
+      .avatar.superfile-drag .superfile-preview {
+        display: none;
       }
       .avatar label,
       .avatar .superfile-preview {
@@ -97,7 +106,7 @@
         </div>
 
         <div class="mb-3">
-          <p>Upload an avatar (cropped to square, retina size)</p>
+          <p>Upload an avatar (cropped to square, retina size). Try dragging a file!</p>
           <div class="superfile avatar">
             <label for="formFile4" class="form-label">Avatar upload</label>
             <button class="superfile-clear" type="button">✖️</button>
@@ -121,6 +130,7 @@
             <img src="https://randomuser.me/api/portraits/men/36.jpg" class="img-fluid superfile-preview" />
           </div>
         </div>
+
         <button class="btn btn-primary" type="submit">Submit form</button>
       </form>
     </div>

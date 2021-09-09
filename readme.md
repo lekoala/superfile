@@ -11,6 +11,7 @@ An ES6 class to improve uploaders. Works great with Bootstrap but works with any
 - Preview image
 - Clear uploads
 - Crop to ratio
+- Drop support
 
 ## How to use
 

@@ -5,7 +5,10 @@
 // Global config
 const BASE_CLASS = "superfile";
 const PREVIEW_CLASS = "superfile-preview";
+const PREVIEW_ACTIVE_CLASS = "superfile-preview-active";
 const CLEAR_CLASS = "superfile-clear";
+const READY_CLASS = "superfile-ready";
+const DRAG_CLASS = "superfile-drag";
 const MAX_WIDTH = 1024;
 const MAX_HEIGHT = 1024;
 
@@ -15,13 +18,13 @@ class Superfile {
    */
   constructor(inputElement) {
     this.inputElement = inputElement;
-    this.parentElement = inputElement.parentElement;
+    this.holderElement = inputElement.parentElement;
     // Look up to two levels
-    if (!this.parentElement.classList.contains(BASE_CLASS)) {
-      this.parentElement = this.parentElement.parentElement;
+    if (!this.holderElement.classList.contains(BASE_CLASS)) {
+      this.holderElement = this.holderElement.parentElement;
     }
-    this.previewElement = this.parentElement.querySelector("img." + PREVIEW_CLASS);
-    this.clearElement = this.parentElement.querySelector("." + CLEAR_CLASS);
+    this.previewElement = this.holderElement.querySelector("img." + PREVIEW_CLASS);
+    this.clearElement = this.holderElement.querySelector("." + CLEAR_CLASS);
 
     // config
     this.disableResize = inputElement.dataset.disableResize ? true : false;
@@ -46,15 +49,25 @@ class Superfile {
         this.showPreview();
       });
     });
-
     if (this.clearElement) {
       this.clearElement.addEventListener("click", (ev) => {
         this.clearPreview();
       });
     }
 
+    // drop support
+    this.holderElement.addEventListener("dragleave", (ev) => {
+      this.onDragleave(ev);
+    });
+    this.holderElement.addEventListener("dragover", (ev) => {
+      this.onDragover(ev);
+    });
+    this.holderElement.addEventListener("drop", (ev) => {
+      this.onDrop(ev);
+    });
+
     // ready!
-    this.parentElement.classList.add("superfile-ready");
+    this.holderElement.classList.add(READY_CLASS);
   }
 
   /**
@@ -69,9 +82,41 @@ class Superfile {
     }
   }
 
+  /**
+   * @param {Event} e
+   */
+  onDrop(e) {
+    e.stopPropagation();
+    e.preventDefault();
+    this.inputElement.files = e.dataTransfer.files;
+    this.inputElement.dispatchEvent(new Event("change"));
+    this.holderElement.classList.remove(DRAG_CLASS);
+  }
+
+  /**
+   * @param {Event} e
+   */
+  onDragover(e) {
+    e.stopPropagation();
+    e.preventDefault();
+    if (!this.holderElement.classList.contains(DRAG_CLASS)) {
+      this.holderElement.classList.add(DRAG_CLASS);
+    }
+    e.dataTransfer.dropEffect = "copy"; // Explicitly show this is a copy.
+  }
+
+  /**
+   * @param {Event} e
+   */
+  onDragleave(e) {
+    e.stopPropagation();
+    e.preventDefault();
+    this.holderElement.classList.remove(DRAG_CLASS);
+  }
+
   showPreview() {
     if (this.previewElement) {
-      this.parentElement.classList.add("superfile-preview-active");
+      this.holderElement.classList.add(PREVIEW_ACTIVE_CLASS);
       if (this.clearElement && this.clearElement.dataset.originalDisplay) {
         this.clearElement.style.display = this.clearElement.dataset.originalDisplay;
       }
@@ -85,7 +130,7 @@ class Superfile {
   clearPreview() {
     this.inputElement.value = null;
     if (this.previewElement) {
-      this.parentElement.classList.remove("superfile-preview-active");
+      this.holderElement.classList.remove(PREVIEW_ACTIVE_CLASS);
       this.previewElement.removeAttribute("src");
       if (this.hideClear) {
         this.clearElement.style.display = "none";
