@@ -8,6 +8,64 @@
       import Superfile from "./superfile.js";
       Superfile.init();
     </script>
+    <style type="text/css">
+      img:not([src]) {
+        display: none;
+      }
+      .superfile:not(.superfile-ready) {
+        visibility: hidden;
+      }
+      .avatar {
+        width: 100px;
+        height: 100px;
+        background: #ccc;
+        border-radius: 100px;
+        position: relative;
+      }
+      .avatar .superfile-clear {
+        position: absolute;
+        top: 0px;
+        right: 0px;
+        width: 24px;
+        height: 24px;
+        display: inline-flex;
+        align-items: center;
+        text-align: center;
+        border: 0;
+        background: #ddd;
+        font-size: 10px;
+        border-radius: 24px;
+        z-index: 2;
+      }
+      .avatar input {
+        display: none;
+      }
+      .avatar label {
+        z-index: 1;
+      }
+      .avatar.superfile-preview-active label {
+        text-indent: -9999px;
+      }
+      .avatar .superfile-preview {
+        z-index: 0;
+        border-radius: 500px;
+      }
+      .avatar label,
+      .avatar .superfile-preview {
+        position: absolute;
+        top: 0;
+        left: 0;
+        height: 100%;
+        width: 100%;
+      }
+      .avatar label {
+        display: inline-flex;
+        align-items: center;
+        text-align: center;
+        max-width: 75%;
+        left: 12.5%;
+      }
+    </style>
   </head>
   <body>
     <div class="container">
@@ -16,10 +74,10 @@
         <div class="mb-3 superfile">
           <label for="formFile" class="form-label">Default file input example</label>
           <div class="input-group">
-            <input class="form-control" type="file" id="formFile" name="file" />
+            <input class="form-control" type="file" id="formFile" accept="image/*" name="file" />
             <button class="btn btn-outline-secondary superfile-clear" type="button">Clear</button>
           </div>
-          <img src="" class="img-fluid superfile-preview" />
+          <img class="img-fluid superfile-preview" />
         </div>
         <div class="mb-3 superfile">
           <label for="formFile2" class="form-label">Default file input example (no resize)</label>
@@ -27,15 +85,41 @@
             <input class="form-control" type="file" id="formFile2" name="file2" data-disable-resize="1" />
             <button class="btn btn-outline-secondary superfile-clear" type="button">Clear</button>
           </div>
-          <img src="" class="img-fluid superfile-preview" />
+          <img class="img-fluid superfile-preview" />
         </div>
         <div class="mb-3 superfile">
           <label for="formFile3" class="form-label">Default file input example (custom size)</label>
           <div class="input-group">
-            <input class="form-control" type="file" id="formFile3" name="file3" data-max-width="100" data-max-height="100" />
+            <input class="form-control" type="file" id="formFile3" name="file3" accept="image/*" data-max-width="100" data-max-height="100" />
             <button class="btn btn-outline-secondary superfile-clear" type="button">Clear</button>
           </div>
-          <img src="" class="img-fluid superfile-preview" />
+          <img class="img-fluid superfile-preview" />
+        </div>
+
+        <div class="mb-3">
+          <p>Upload an avatar (cropped to square, retina size)</p>
+          <div class="superfile avatar">
+            <label for="formFile4" class="form-label">Avatar upload</label>
+            <button class="superfile-clear" type="button">✖️</button>
+            <div class="input-group">
+              <!-- double width/height for retina display -->
+              <input class="form-control" type="file" id="formFile4" name="file4" accept="image/*" data-max-width="200" data-max-height="200" data-hide-clear="1" data-ratio="1:1" />
+            </div>
+            <img class="img-fluid superfile-preview" />
+          </div>
+        </div>
+
+        <div class="mb-3">
+          <p>Upload an avatar (preset value)</p>
+          <div class="superfile avatar">
+            <label for="formFile5" class="form-label">Avatar upload</label>
+            <button class="superfile-clear" type="button">✖️</button>
+            <div class="input-group">
+              <!-- double width/height for retina display -->
+              <input class="form-control" type="file" id="formFile5" name="file5" accept="image/*" data-max-width="200" data-max-height="200" data-hide-clear="1" data-ratio="1:1" />
+            </div>
+            <img src="https://randomuser.me/api/portraits/men/36.jpg" class="img-fluid superfile-preview" />
+          </div>
         </div>
         <button class="btn btn-primary" type="submit">Submit form</button>
       </form>

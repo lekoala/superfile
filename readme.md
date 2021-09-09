@@ -10,6 +10,7 @@ An ES6 class to improve uploaders. Works great with Bootstrap but works with any
 - Resize image on client side to avoid large uploads
 - Preview image
 - Clear uploads
+- Crop to ratio
 
 ## How to use
 
@@ -29,9 +30,46 @@ You can add a clear button and a preview image if you want.
     <input class="form-control" type="file" id="formFile" name="file" />
     <button class="btn btn-outline-secondary superfile-clear" type="button">Clear</button>
     </div>
-    <img src="" class="img-fluid superfile-preview" />
+    <img class="img-fluid superfile-preview" />
 </div>
 ```
+
+## Available options
+
+These are set through `data` attributes:
+
+- disable-resize: don't try to resize the images and keep original files
+- max-width: the maximum width of the image (keep ratio)
+- max-height: the maximum height of the image (keep ratio)
+- hide-clear: hide clear element (if any) until preview is showed
+- ratio: set a ratio (eg: 1:1 for a square ratio) for the image. Image is cropped from the center. It can
+be used with max-width/max-height or independantly.
+
+## Limiting accepted file types
+
+You can use the regular [`accept` attribute](https://developer.mozilla.org/en-US/docs/Web/HTML/Attributes/accept).
+
+```html
+<input type="file" accept=".gif,.jpg,.jpeg,.png,.doc,.docx">
+<input type="file" accept="image/*">
+```
+
+## Recommended css
+
+- Hide preview element when no src is set
+- Hide inputs until ready (avoids fouc)
+
+```css
+img:not([src]) {
+    display: none;
+}
+.superfile:not(.superfile-ready) {
+    visibility: hidden;
+}
+```
+
+When set, the preview will get a `src` attribute like `blob:http://someaddress/30fde1c6-911e-4b50-a823-e778d100ffb3`
+and be displayed
 
 ## Demo
 

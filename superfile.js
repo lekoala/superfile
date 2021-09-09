@@ -27,6 +27,18 @@ class Superfile {
     this.disableResize = inputElement.dataset.disableResize ? true : false;
     this.maxWidth = inputElement.dataset.maxWidth ? parseInt(inputElement.dataset.maxWidth) : MAX_WIDTH;
     this.maxHeight = inputElement.dataset.maxHeight ? parseInt(inputElement.dataset.maxHeight) : MAX_HEIGHT;
+    this.hideClear = inputElement.dataset.hideClear ? true : false;
+    this.imageRatio = inputElement.dataset.ratio ? inputElement.dataset.ratio.split(/\/|:/) : null;
+
+    if (this.clearElement && this.hideClear) {
+      this.clearElement.dataset.originalDisplay = this.clearElement.style.display ? this.clearElement.style.display : "block";
+      this.clearElement.style.display = "none";
+    }
+
+    // if we already have a preview set
+    if (this.previewElement && this.previewElement.getAttribute("src")) {
+      this.showPreview();
+    }
 
     // listeners
     this.inputElement.addEventListener("change", (ev) => {
@@ -40,6 +52,9 @@ class Superfile {
         this.clearPreview();
       });
     }
+
+    // ready!
+    this.parentElement.classList.add("superfile-ready");
   }
 
   /**
@@ -56,42 +71,135 @@ class Superfile {
 
   showPreview() {
     if (this.previewElement) {
-      this.previewElement.src = URL.createObjectURL(this.inputElement.files[0]);
+      this.parentElement.classList.add("superfile-preview-active");
+      if (this.clearElement && this.clearElement.dataset.originalDisplay) {
+        this.clearElement.style.display = this.clearElement.dataset.originalDisplay;
+      }
+      // Use data from file input if available
+      if (this.inputElement.files[0]) {
+        this.previewElement.src = URL.createObjectURL(this.inputElement.files[0]);
+      }
     }
   }
 
   clearPreview() {
     this.inputElement.value = null;
     if (this.previewElement) {
-      this.previewElement.src = "";
+      this.parentElement.classList.remove("superfile-preview-active");
+      this.previewElement.removeAttribute("src");
+      if (this.hideClear) {
+        this.clearElement.style.display = "none";
+      }
     }
   }
+
+  /**
+   * This might not be needed since it seems that the browser
+   * already rotates and drops exif anyway
+   * @link https://stackoverflow.com/questions/18297120/html5-resize-image-and-keep-exif-in-resized-image
+   * @link https://github.com/recurser/exif-orientation-examples
+   * @link https://stackoverflow.com/questions/7584794/accessing-jpeg-exif-rotation-data-in-javascript-on-the-client-side/32490603#32490603
+   * @param {File} file
+   * @param {Function} callback
+   */
+  /*getOrientation(file, callback) {
+    if (file.type !== "image/jpeg") {
+      // not jpeg
+      return callback(-2);
+    }
+    var reader = new FileReader();
+    reader.onload = function (e) {
+      var view = new DataView(e.target.result);
+      if (view.getUint16(0, false) != 0xffd8) {
+        // not jpeg
+        return callback(-2);
+      }
+      var length = view.byteLength,
+        offset = 2;
+      while (offset < length) {
+        if (view.getUint16(offset + 2, false) <= 8) return callback(-1);
+        var marker = view.getUint16(offset, false);
+        offset += 2;
+        if (marker == 0xffe1) {
+          if (view.getUint32((offset += 2), false) != 0x45786966) {
+            return callback(-1);
+          }
+
+          var little = view.getUint16((offset += 6), false) == 0x4949;
+          offset += view.getUint32(offset + 4, little);
+          var tags = view.getUint16(offset, little);
+          offset += 2;
+          for (var i = 0; i < tags; i++) {
+            if (view.getUint16(offset + i * 12, little) == 0x0112) {
+              return callback(view.getUint16(offset + i * 12 + 8, little));
+            }
+          }
+        } else if ((marker & 0xff00) != 0xff00) {
+          break;
+        } else {
+          offset += view.getUint16(offset, false);
+        }
+      }
+      // not defined
+      return callback(-1);
+    };
+    reader.readAsArrayBuffer(file);
+  }*/
 
   /**
    * @param {File} file
    * @param {Image} img
    * @param {Function} callback
-   * @returns
+   * @returns {void}
    */
   resizeImage(file, img, callback) {
     let canvas = document.createElement("canvas");
 
-    let width = img.width;
-    let height = img.height;
+    let sx = 0;
+    let sy = 0;
+    let imgWidth = img.naturalWidth;
+    let imgHeight = img.naturalHeight;
+    let cropWidth = imgWidth;
+    let cropHeight = imgHeight;
+    let width = imgWidth;
+    let height = imgHeight;
+    let needResize = width > this.maxWidth || height > this.maxHeight;
+    let currentRatio = width / height;
+    let targetRatio = currentRatio;
+    let needCrop = false;
+    if (this.imageRatio) {
+      targetRatio = this.imageRatio[0] / this.imageRatio[1];
+      needCrop = this.imageRatio !== targetRatio;
+    }
 
     // No resize needed
-    if (width <= this.maxWidth && height <= this.maxHeight) {
+    if (!needResize && !needCrop) {
       callback();
       return;
     }
 
-    // Resize
+    // Crop to ratio
+    if (needCrop) {
+      if (currentRatio > targetRatio) {
+        width = height * targetRatio;
+      } else if (currentRatio < targetRatio) {
+        height = width / targetRatio;
+      }
+      sx = (imgWidth - width) / 2;
+      sy = (imgHeight - height) / 2;
+    }
+
+    // Resize (preserve ratio)
     if (width > this.maxWidth) {
       height *= this.maxWidth / width;
+      cropWidth *= this.maxWidth / width;
+      cropHeight *= this.maxWidth / width;
       width = this.maxWidth;
     }
     if (height > this.maxHeight) {
       width *= this.maxHeight / height;
+      cropWidth *= this.maxHeight / height;
+      cropHeight *= this.maxHeight / height;
       height = this.maxHeight;
     }
 
@@ -102,7 +210,14 @@ class Superfile {
     canvas.height = height;
 
     let ctx = canvas.getContext("2d");
-    ctx.drawImage(img, 0, 0, width, height);
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = "high";
+
+    if (needCrop) {
+      ctx.drawImage(img, sx, sy, imgWidth, imgHeight, 0, 0, cropWidth, cropHeight);
+    } else {
+      ctx.drawImage(img, 0, 0, width, height);
+    }
 
     // @link https://caniuse.com/?search=toblob
     ctx.canvas.toBlob(
@@ -129,7 +244,6 @@ class Superfile {
     }
 
     let reader = new FileReader();
-
     reader.onload = (ev) => {
       let img = new Image();
       // We need to wait until image is loaded
@@ -138,7 +252,7 @@ class Superfile {
         this.resizeImage(file, img, callback);
       };
       img.onerror = (ev) => {
-        console.log(ev);
+        // Maybe the image format is not supported
       };
       img.src = ev.target.result;
     };
