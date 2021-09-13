@@ -9,6 +9,7 @@ const PREVIEW_ACTIVE_CLASS = "superfile-preview-active";
 const CLEAR_CLASS = "superfile-clear";
 const READY_CLASS = "superfile-ready";
 const DRAG_CLASS = "superfile-drag";
+const CLONE_CLASS = "superfile-clone";
 const MAX_WIDTH = 1024;
 const MAX_HEIGHT = 1024;
 
@@ -132,7 +133,7 @@ class Superfile {
       let previewEl = previewHolder.querySelectorAll("." + PREVIEW_CLASS)[i];
       if (!previewEl) {
         previewEl = this.previewElement.cloneNode(true);
-
+        previewEl.classList.add(CLONE_CLASS);
         previewHolder.appendChild(previewEl);
       }
       previewEl.src = URL.createObjectURL(file);
@@ -140,14 +141,18 @@ class Superfile {
   }
 
   clearPreview() {
-    this.inputElement.value = null;
     if (this.previewElement) {
       this.holderElement.classList.remove(PREVIEW_ACTIVE_CLASS);
       this.previewElement.removeAttribute("src");
       if (this.hideClear) {
         this.clearElement.style.display = "none";
       }
+      let clones = this.holderElement.querySelectorAll("." + CLONE_CLASS);
+      for (let i = 0; i < clones.length; i++) {
+        clones[i].parentElement.removeChild(clones[i]);
+      }
     }
+    this.inputElement.value = null;
   }
 
   /**
