@@ -1,6 +1,6 @@
 # superfile
 
-[![NPM](https://nodei.co/npm/superfile.png?mini=true)](https://nodei.co/npm/superfile/) 
+[![NPM](https://nodei.co/npm/superfile.png?mini=true)](https://nodei.co/npm/superfile/)
 [![Downloads](https://img.shields.io/npm/dt/superfile.svg)](https://www.npmjs.com/package/superfile)
 
 ## Intro
@@ -27,12 +27,12 @@ You can add a clear button and a preview image if you want.
 
 ```html
 <div class="mb-3 superfile">
-    <label for="formFile" class="form-label">Default file input example</label>
-    <div class="input-group">
+  <label for="formFile" class="form-label">Default file input example</label>
+  <div class="input-group">
     <input class="form-control" type="file" id="formFile" name="file" />
     <button class="btn btn-outline-secondary superfile-clear" type="button">Clear</button>
-    </div>
-    <img class="img-fluid superfile-preview" />
+  </div>
+  <img class="img-fluid superfile-preview" />
 </div>
 ```
 
@@ -45,15 +45,14 @@ These are set through `data` attributes:
 - max-height: the maximum height of the image (keep ratio)
 - hide-clear: hide clear element (if any) until preview is showed
 - ratio: set a ratio (eg: 1:1 for a square ratio) for the image. Image is cropped from the center. It can
-be used with max-width/max-height or independantly.
+  be used with max-width/max-height or independantly.
 
 ## Limiting accepted file types
 
 You can use the regular [`accept` attribute](https://developer.mozilla.org/en-US/docs/Web/HTML/Attributes/accept).
 
 ```html
-<input type="file" accept=".gif,.jpg,.jpeg,.png,.doc,.docx">
-<input type="file" accept="image/*">
+<input type="file" accept=".gif,.jpg,.jpeg,.png,.doc,.docx" /> <input type="file" accept="image/*" />
 ```
 
 ## Recommended css
@@ -64,13 +63,13 @@ You can use the regular [`accept` attribute](https://developer.mozilla.org/en-US
 
 ```css
 img:not([src]) {
-    display: none;
+  display: none;
 }
 .superfile:not(.superfile-ready) {
-    visibility: hidden;
+  visibility: hidden;
 }
 .superfile-drag input {
-    background: palegoldenrod;
+  background: palegoldenrod;
 }
 ```
 
@@ -86,5 +85,6 @@ https://codepen.io/lekoalabe/pen/wvdVoNa
 This is a simple improvement over regular file input.
 
 If you need more, look at :
+
 - https://pqina.nl/filepond/
 - https://www.dropzonejs.com/

@@ -10,8 +10,8 @@ const CLEAR_CLASS = "superfile-clear";
 const READY_CLASS = "superfile-ready";
 const DRAG_CLASS = "superfile-drag";
 const CLONE_CLASS = "superfile-clone";
-const MAX_WIDTH = 1024;
-const MAX_HEIGHT = 1024;
+const MAX_WIDTH = 1920;
+const MAX_HEIGHT = 1920;
 
 class Superfile {
   /**
@@ -24,7 +24,9 @@ class Superfile {
     if (!this.holderElement.classList.contains(BASE_CLASS)) {
       this.holderElement = this.holderElement.parentElement;
     }
+    /** @type {HTMLImageElement} */
     this.previewElement = this.holderElement.querySelector("img." + PREVIEW_CLASS);
+    /** @type {HTMLButtonElement} */
     this.clearElement = this.holderElement.querySelector("." + CLEAR_CLASS);
 
     // config
@@ -79,12 +81,13 @@ class Superfile {
     let list = document.querySelectorAll(selector);
     for (let i = 0; i < list.length; i++) {
       let el = list[i];
+      //@ts-ignore
       let inst = new Superfile(el);
     }
   }
 
   /**
-   * @param {Event} e
+   * @param {DragEvent} e
    */
   onDrop(e) {
     e.stopPropagation();
@@ -95,7 +98,7 @@ class Superfile {
   }
 
   /**
-   * @param {Event} e
+   * @param {DragEvent} e
    */
   onDragover(e) {
     e.stopPropagation();
@@ -107,7 +110,7 @@ class Superfile {
   }
 
   /**
-   * @param {Event} e
+   * @param {DragEvent} e
    */
   onDragleave(e) {
     e.stopPropagation();
@@ -130,8 +133,11 @@ class Superfile {
       if (!file.type.match(/image.*/)) {
         continue;
       }
+      /** @type {HTMLImageElement} */
+      //@ts-ignore
       let previewEl = previewHolder.querySelectorAll("." + PREVIEW_CLASS)[i];
       if (!previewEl) {
+        //@ts-ignore
         previewEl = this.previewElement.cloneNode(true);
         previewEl.classList.add(CLONE_CLASS);
         previewHolder.appendChild(previewEl);
@@ -210,7 +216,7 @@ class Superfile {
 
   /**
    * @param {File} file
-   * @param {Image} img
+   * @param {HTMLImageElement} img
    * @param {Function} callback
    * @returns {void}
    */
@@ -230,8 +236,8 @@ class Superfile {
     let targetRatio = currentRatio;
     let needCrop = false;
     if (this.imageRatio) {
-      targetRatio = this.imageRatio[0] / this.imageRatio[1];
-      needCrop = this.imageRatio !== targetRatio;
+      targetRatio = parseInt(this.imageRatio[0]) / parseInt(this.imageRatio[1]);
+      needCrop = currentRatio !== targetRatio;
     }
 
     // No resize needed
@@ -316,6 +322,7 @@ class Superfile {
       img.onerror = (ev) => {
         // Maybe the image format is not supported
       };
+      //@ts-ignore yes, it's a string
       img.src = ev.target.result;
     };
     reader.onerror = (ev) => {

@@ -4,12 +4,16 @@
   "description": "What's better than a file input ? A superfile input",
   "main": "superfile",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "serve": "http-server"
+    "build": "esbuild superfile.js --bundle --minify --format=esm --outfile=superfile.min.js",
+    "start": "bun run build -- --servedir=.",
+    "watch": "bun run build -- --watch"
   },
   "repository": {
     "type": "git",
     "url": "https://github.com/lekoala/superfile"
+  },
+  "devDependencies": {
+    "esbuild": "^0.21.3"
   },
   "keywords": [
     "file",
