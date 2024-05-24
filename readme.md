@@ -46,6 +46,8 @@ These are set through `data` attributes:
 - hide-clear: hide clear element (if any) until preview is showed
 - ratio: set a ratio (eg: 1:1 for a square ratio) for the image. Image is cropped from the center. It can
   be used with max-width/max-height or independantly.
+- quality: image quality (defaults to 1 = 100%).
+- take pictures from the webcam
 
 ## Limiting accepted file types
 
