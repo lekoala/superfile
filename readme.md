@@ -11,8 +11,9 @@ An ES6 class to improve uploaders. Works great with Bootstrap but works with any
 - Preview image
 - Clear uploads
 - Crop to ratio
-- Drop support
+- Drag&drop support
 - Multiple/directory upload support
+- Take pictures from the webcam
 
 ## How to use
 
@@ -47,7 +48,6 @@ These are set through `data` attributes:
 - ratio: set a ratio (eg: 1:1 for a square ratio) for the image. Image is cropped from the center. It can
   be used with max-width/max-height or independantly.
 - quality: image quality (defaults to 1 = 100%).
-- take pictures from the webcam
 
 ## Limiting accepted file types
 
@@ -81,6 +81,10 @@ and be displayed
 ## Demo
 
 https://codepen.io/lekoalabe/pen/wvdVoNa
+
+## Custom element
+
+https://formidable-elements.vercel.app/demo/superfile-input.html
 
 ## I need more
 

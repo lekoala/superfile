@@ -1,6 +1,6 @@
 {
   "name": "superfile",
-  "version": "1.2.2",
+  "version": "1.3.0",
   "description": "What's better than a file input ? A superfile input",
   "main": "superfile",
   "scripts": {
