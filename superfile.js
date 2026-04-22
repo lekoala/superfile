@@ -16,432 +16,464 @@ const MAX_HEIGHT = 1920;
 const QUALITY = 1;
 
 class Superfile {
-  /**
-   * @param {HTMLInputElement} inputElement
-   */
-  constructor(inputElement) {
-    this.inputElement = inputElement;
-    this.holderElement = inputElement.parentElement;
-    // Look up to two levels
-    if (!this.holderElement.classList.contains(BASE_CLASS)) {
-      this.holderElement = this.holderElement.parentElement;
-    }
-    /** @type {HTMLImageElement} */
-    this.previewElement = this.holderElement.querySelector("img." + PREVIEW_CLASS);
-    /** @type {HTMLButtonElement} */
-    this.clearElement = this.holderElement.querySelector("." + CLEAR_CLASS);
-    /** @type {HTMLButtonElement} */
-    this.webcamElement = this.holderElement.querySelector("." + WEBCAM_CLASS);
+	/**
+	 * @param {HTMLInputElement} inputElement
+	 */
+	constructor(inputElement) {
+		this.inputElement = inputElement;
+		this.holderElement = inputElement.parentElement;
+		// Look up to two levels
+		if (!this.holderElement.classList.contains(BASE_CLASS)) {
+			this.holderElement = this.holderElement.parentElement;
+		}
+		/** @type {HTMLImageElement} */
+		this.previewElement = this.holderElement.querySelector(
+			`img.${PREVIEW_CLASS}`,
+		);
+		/** @type {HTMLButtonElement} */
+		this.clearElement = this.holderElement.querySelector(`.${CLEAR_CLASS}`);
+		/** @type {HTMLButtonElement} */
+		this.webcamElement = this.holderElement.querySelector(`.${WEBCAM_CLASS}`);
 
-    // config
-    const data = inputElement.dataset;
-    this.disableResize = data.disableResize ? true : false;
-    this.maxWidth = data.maxWidth ? parseInt(data.maxWidth) : MAX_WIDTH;
-    this.maxHeight = data.maxHeight ? parseInt(data.maxHeight) : MAX_HEIGHT;
-    this.hideClear = data.hideClear ? true : false;
-    this.imageRatio = data.ratio ? data.ratio.split(/\/|:/) : null;
-    this.quality = data.quality ? parseInt(data.quality) : QUALITY;
-    if (this.quality > 1) {
-      this.quality = this.quality / 100;
-    }
+		// config
+		const data = inputElement.dataset;
+		this.disableResize = !!data.disableResize;
+		this.maxWidth = data.maxWidth ? parseInt(data.maxWidth, 10) : MAX_WIDTH;
+		this.maxHeight = data.maxHeight ? parseInt(data.maxHeight, 10) : MAX_HEIGHT;
+		this.hideClear = !!data.hideClear;
+		this.imageRatio = data.ratio ? data.ratio.split(/\/|:/) : null;
+		this.quality = data.quality ? parseInt(data.quality, 10) : QUALITY;
+		if (this.quality > 1) {
+			this.quality = this.quality / 100;
+		}
 
-    // hide clear if not showing preview
-    if (this.clearElement && this.hideClear) {
-      this.clearElement.dataset.originalDisplay = this.clearElement.style.display ? this.clearElement.style.display : "block";
-      this.clearElement.style.display = "none";
-    }
+		// hide clear if not showing preview
+		if (this.clearElement && this.hideClear) {
+			this.clearElement.dataset.originalDisplay = this.clearElement.style
+				.display
+				? this.clearElement.style.display
+				: "block";
+			this.clearElement.style.display = "none";
+		}
 
-    // if we already have a preview set
-    if (this.previewElement && this.previewElement.getAttribute("src")) {
-      this.showPreview();
-    }
+		// if we already have a preview set
+		if (this.previewElement?.getAttribute("src")) {
+			this.showPreview();
+		}
 
-    // listeners
-    this.inputElement.addEventListener("change", this);
-    if (this.clearElement) {
-      this.clearElement.addEventListener("click", this);
-    }
-    if (this.webcamElement) {
-      this.webcamElement.addEventListener("click", this);
-    }
+		// listeners
+		this.inputElement.addEventListener("change", this);
+		if (this.clearElement) {
+			this.clearElement.addEventListener("click", this);
+		}
+		if (this.webcamElement) {
+			this.webcamElement.addEventListener("click", this);
+		}
 
-    // drag/drop support
-    ["dragleave", "dragover", "drop"].forEach((type) => this.holderElement.addEventListener(type, this));
+		// drag/drop support
+		for (const type of ["dragleave", "dragover", "drop"]) {
+			this.holderElement.addEventListener(type, this);
+		}
 
-    // ready!
-    this.holderElement.classList.add(READY_CLASS);
-  }
+		// ready!
+		this.holderElement.classList.add(READY_CLASS);
+	}
 
-  dispose() {
-    this.inputElement.removeEventListener("change", this);
-    if (this.clearElement) {
-      this.clearElement.removeEventListener("click", this);
-    }
-    if (this.webcamElement) {
-      this.webcamElement.addEventListener("click", this);
-    }
-    ["dragleave", "dragover", "drop"].forEach((type) => this.holderElement.removeEventListener(type, this));
-  }
+	dispose() {
+		this.inputElement.removeEventListener("change", this);
+		if (this.clearElement) {
+			this.clearElement.removeEventListener("click", this);
+		}
+		if (this.webcamElement) {
+			this.webcamElement.removeEventListener("click", this);
+		}
+		for (const type of ["dragleave", "dragover", "drop"]) {
+			this.holderElement.removeEventListener(type, this);
+		}
+		this.revokePreviewUrls();
+	}
 
-  /**
-   * Attach to all elements matched by the selector
-   * @param {string} selector
-   */
-  static init(selector = "input[type=file]") {
-    let list = document.querySelectorAll(selector);
-    for (let i = 0; i < list.length; i++) {
-      let el = list[i];
-      //@ts-ignore
-      let inst = new Superfile(el);
-    }
-  }
+	/**
+	 * Revoke all created blob URLs to prevent memory leaks
+	 */
+	revokePreviewUrls() {
+		if (this.previewElement) {
+			const previews = this.holderElement.querySelectorAll(`.${PREVIEW_CLASS}`);
+			for (const /** @type {HTMLImageElement} */ preview of previews) {
+				if (preview.src?.startsWith("blob:")) {
+					URL.revokeObjectURL(preview.src);
+				}
+			}
+		}
+	}
 
-  handleEvent(e) {
-    this[`$${e.type}`](e);
-  }
+	/**
+	 * Attach to all elements matched by the selector
+	 * @param {string} selector
+	 */
+	static init(selector = "input[type=file]") {
+		const list = document.querySelectorAll(selector);
+		for (let i = 0; i < list.length; i++) {
+			const el = list[i];
+			//@ts-expect-error
+			new Superfile(el);
+		}
+	}
 
-  /**
-   * This is attached to input element
-   * @param {*} e
-   */
-  $change(e) {
-    this.processFiles(() => {
-      this.showPreview();
-    });
-  }
+	handleEvent(e) {
+		this[`$${e.type}`](e);
+	}
 
-  /**
-   * This is attached to clear/webcam element
-   * @param {*} e
-   */
-  $click(e) {
-    const btn = e.target.closest("button");
-    if (!btn) {
-      return;
-    }
-    if (btn.classList.contains(CLEAR_CLASS)) {
-      this.clearPreview();
-    }
-    if (btn.classList.contains(WEBCAM_CLASS)) {
-      this.takePicture();
-    }
-  }
+	/**
+	 * This is attached to input element
+	 * @param {Event} _e
+	 */
+	$change(_e) {
+		this.processFiles(() => {
+			this.showPreview();
+		});
+	}
 
-  /**
-   * This is attached to holder element
-   * @param {DragEvent} e
-   */
-  $drop(e) {
-    e.stopPropagation();
-    e.preventDefault();
-    this.inputElement.files = e.dataTransfer.files;
-    this.inputElement.dispatchEvent(new Event("change"));
-    this.holderElement.classList.remove(DRAG_CLASS);
-  }
+	/**
+	 * This is attached to clear/webcam element
+	 * @param {*} e
+	 */
+	$click(e) {
+		const btn = e.target.closest("button");
+		if (!btn) {
+			return;
+		}
+		if (btn.classList.contains(CLEAR_CLASS)) {
+			this.clearPreview();
+		}
+		if (btn.classList.contains(WEBCAM_CLASS)) {
+			this.takePicture();
+		}
+	}
 
-  /**
-   * This is attached to holder element
-   * @param {DragEvent} e
-   */
-  $dragover(e) {
-    e.stopPropagation();
-    e.preventDefault();
-    if (!this.holderElement.classList.contains(DRAG_CLASS)) {
-      this.holderElement.classList.add(DRAG_CLASS);
-    }
-    e.dataTransfer.dropEffect = "copy"; // Explicitly show this is a copy.
-  }
+	/**
+	 * This is attached to holder element
+	 * @param {DragEvent} e
+	 */
+	$drop(e) {
+		e.stopPropagation();
+		e.preventDefault();
+		this.inputElement.files = e.dataTransfer.files;
+		this.inputElement.dispatchEvent(new Event("change"));
+		this.holderElement.classList.remove(DRAG_CLASS);
+	}
 
-  /**
-   * This is attached to holder element
-   * @param {DragEvent} e
-   */
-  $dragleave(e) {
-    e.stopPropagation();
-    e.preventDefault();
-    this.holderElement.classList.remove(DRAG_CLASS);
-  }
+	/**
+	 * This is attached to holder element
+	 * @param {DragEvent} e
+	 */
+	$dragover(e) {
+		e.stopPropagation();
+		e.preventDefault();
+		if (!this.holderElement.classList.contains(DRAG_CLASS)) {
+			this.holderElement.classList.add(DRAG_CLASS);
+		}
+		e.dataTransfer.dropEffect = "copy"; // Explicitly show this is a copy.
+	}
 
-  showPreview() {
-    if (!this.previewElement) {
-      return;
-    }
-    this.holderElement.classList.add(PREVIEW_ACTIVE_CLASS);
+	/**
+	 * This is attached to holder element
+	 * @param {DragEvent} e
+	 */
+	$dragleave(e) {
+		e.stopPropagation();
+		e.preventDefault();
+		this.holderElement.classList.remove(DRAG_CLASS);
+	}
 
-    // If clear element was hidden, show it
-    if (this.clearElement && this.clearElement.dataset.originalDisplay) {
-      this.clearElement.style.display = this.clearElement.dataset.originalDisplay;
-    }
+	showPreview() {
+		if (!this.previewElement) {
+			return;
+		}
+		this.holderElement.classList.add(PREVIEW_ACTIVE_CLASS);
 
-    // Use data from file input if available
-    let previewHolder = this.previewElement.parentElement;
-    for (let i = 0; i < this.inputElement.files.length; i++) {
-      let file = this.inputElement.files[i];
-      if (!file.type.match(/image.*/)) {
-        continue;
-      }
-      /** @type {HTMLImageElement} */
-      //@ts-ignore
-      let previewEl = previewHolder.querySelectorAll("." + PREVIEW_CLASS)[i];
-      if (!previewEl) {
-        //@ts-ignore
-        previewEl = this.previewElement.cloneNode(true);
-        previewEl.classList.add(CLONE_CLASS);
-        previewHolder.appendChild(previewEl);
-      }
-      previewEl.src = URL.createObjectURL(file);
-    }
-  }
+		// If clear element was hidden, show it
+		if (this.clearElement?.dataset.originalDisplay) {
+			this.clearElement.style.display =
+				this.clearElement.dataset.originalDisplay;
+		}
 
-  clearPreview() {
-    if (this.previewElement) {
-      this.holderElement.classList.remove(PREVIEW_ACTIVE_CLASS);
-      this.previewElement.removeAttribute("src");
-      if (this.hideClear) {
-        this.clearElement.style.display = "none";
-      }
-      let clones = this.holderElement.querySelectorAll("." + CLONE_CLASS);
-      for (let i = 0; i < clones.length; i++) {
-        clones[i].parentElement.removeChild(clones[i]);
-      }
-    }
-    this.inputElement.value = null;
-  }
+		// Use data from file input if available
+		const previewHolder = this.previewElement.parentElement;
+		for (let i = 0; i < this.inputElement.files.length; i++) {
+			const file = this.inputElement.files[i];
+			if (!file.type.match(/image.*/)) {
+				continue;
+			}
+			/** @type {HTMLImageElement} */
+			//@ts-expect-error
+			let previewEl = previewHolder.querySelectorAll(`.${PREVIEW_CLASS}`)[i];
+			if (!previewEl) {
+				//@ts-expect-error
+				previewEl = this.previewElement.cloneNode(true);
+				previewEl.classList.add(CLONE_CLASS);
+				previewHolder.appendChild(previewEl);
+			}
+			// Revoke previous blob URL to prevent memory leak
+			if (previewEl.src?.startsWith("blob:")) {
+				URL.revokeObjectURL(previewEl.src);
+			}
+			previewEl.src = URL.createObjectURL(file);
+		}
+	}
 
-  takePicture() {
-    const video = document.createElement("video");
-    navigator.mediaDevices
-      .getUserMedia({ video: true, audio: false })
-      .then((stream) => {
-        video.srcObject = stream;
-      })
-      .catch((err) => {
-        console.error(`An error occurred: ${err}`);
-      });
+	clearPreview() {
+		if (this.previewElement) {
+			this.holderElement.classList.remove(PREVIEW_ACTIVE_CLASS);
+			this.revokePreviewUrls();
+			this.previewElement.removeAttribute("src");
+			if (this.hideClear) {
+				this.clearElement.style.display = "none";
+			}
+			const clones = this.holderElement.querySelectorAll(`.${CLONE_CLASS}`);
+			for (let i = 0; i < clones.length; i++) {
+				clones[i].parentElement.removeChild(clones[i]);
+			}
+		}
+		this.inputElement.value = null;
+	}
 
-    const onCanPlay = (ev) => {
-      video.play();
-      let zoom = 0.8;
-      let width = video.videoWidth;
-      let height = video.videoHeight;
-      let sw = width;
-      let sh = height;
-      let currentRatio = width / height;
-      let targetRatio = this.getTargetRatio() || currentRatio;
+	takePicture() {
+		const video = document.createElement("video");
+		navigator.mediaDevices
+			.getUserMedia({ video: true, audio: false })
+			.then((stream) => {
+				video.srcObject = stream;
+			})
+			.catch((err) => {
+				console.error(`An error occurred: ${err}`);
+			});
 
-      width *= zoom;
-      height *= zoom;
+		const onCanPlay = (_ev) => {
+			video.play();
+			const zoom = 0.8;
+			let width = video.videoWidth;
+			let height = video.videoHeight;
+			const sw = width;
+			const sh = height;
+			const currentRatio = width / height;
+			const targetRatio = this.getTargetRatio() || currentRatio;
 
-      if (currentRatio > targetRatio) {
-        width = height * targetRatio;
-      } else if (currentRatio < targetRatio) {
-        height = width / targetRatio;
-      }
-      let sx = (sw - width) / 2;
-      let sy = (sh - height) / 2;
+			width *= zoom;
+			height *= zoom;
 
-      let canvas = document.createElement("canvas");
-      const ctx = canvas.getContext("2d");
-      canvas.width = width;
-      canvas.height = height;
+			if (currentRatio > targetRatio) {
+				width = height * targetRatio;
+			} else if (currentRatio < targetRatio) {
+				height = width / targetRatio;
+			}
+			const sx = (sw - width) / 2;
+			const sy = (sh - height) / 2;
 
-      ctx.drawImage(video, sx, sy, width, height, 0, 0, width, height);
-      ctx.canvas.toBlob(
-        (blob) => {
-          this.createProcessedFile(
-            {
-              type: "image/jpg",
-              name: "webcam",
-            },
-            blob,
-            () => {
-              this.showPreview();
-              video.removeEventListener("canplay", onCanPlay, false);
-              //@ts-ignore
-              video.srcObject.getTracks().forEach((track) => track.stop());
-              video.remove();
-            }
-          );
-        },
-        "image/jpg",
-        this.quality
-      );
-    };
+			const canvas = document.createElement("canvas");
+			const ctx = canvas.getContext("2d");
+			canvas.width = width;
+			canvas.height = height;
 
-    video.addEventListener("canplay", onCanPlay, false);
-  }
+			ctx.drawImage(video, sx, sy, width, height, 0, 0, width, height);
+			ctx.canvas.toBlob(
+				(blob) => {
+					this.createProcessedFile(
+						{
+							type: "image/jpeg",
+							name: "webcam",
+						},
+						blob,
+						() => {
+							this.showPreview();
+							video.removeEventListener("canplay", onCanPlay, false);
+							//@ts-expect-error
+							for (const track of video.srcObject.getTracks()) {
+								track.stop();
+							}
+							video.remove();
+						},
+					);
+				},
+				"image/jpeg",
+				this.quality,
+			);
+		};
 
-  /**
-   * @param {File} file
-   * @param {HTMLImageElement} img
-   * @param {Function} callback
-   * @returns {void}
-   */
-  resizeImage(file, img, callback) {
-    let sw = img.naturalWidth || img.width;
-    let sh = img.naturalHeight || img.height;
-    let sx = 0;
-    let sy = 0;
-    let cropWidth = sw;
-    let cropHeight = sh;
-    let width = sw;
-    let height = sh;
-    let needResize = width > this.maxWidth || height > this.maxHeight;
-    let currentRatio = width / height;
-    let targetRatio = this.getTargetRatio() || currentRatio;
-    let needCrop = currentRatio !== targetRatio;
+		video.addEventListener("canplay", onCanPlay, false);
+	}
 
-    // No resize needed
-    if (!needResize && !needCrop) {
-      callback();
-      return;
-    }
+	/**
+	 * @param {File} file
+	 * @param {HTMLImageElement} img
+	 * @param {Function} callback
+	 * @returns {void}
+	 */
+	resizeImage(file, img, callback) {
+		const sw = img.naturalWidth || img.width;
+		const sh = img.naturalHeight || img.height;
+		let sx = 0;
+		let sy = 0;
+		let cropWidth = sw;
+		let cropHeight = sh;
+		let width = sw;
+		let height = sh;
+		const needResize = width > this.maxWidth || height > this.maxHeight;
+		const currentRatio = width / height;
+		const targetRatio = this.getTargetRatio() || currentRatio;
+		const needCrop = currentRatio !== targetRatio;
 
-    // Crop to ratio
-    if (needCrop) {
-      if (currentRatio > targetRatio) {
-        width = height * targetRatio;
-      } else if (currentRatio < targetRatio) {
-        height = width / targetRatio;
-      }
-      sx = (sw - width) / 2;
-      sy = (sh - height) / 2;
-    }
+		// No resize needed
+		if (!needResize && !needCrop) {
+			callback();
+			return;
+		}
 
-    // Resize (preserve ratio). Target width/height cannot be above max
-    if (width > this.maxWidth) {
-      cropWidth *= this.maxWidth / width;
-      cropHeight *= this.maxWidth / width;
+		// Crop to ratio
+		if (needCrop) {
+			if (currentRatio > targetRatio) {
+				width = height * targetRatio;
+			} else if (currentRatio < targetRatio) {
+				height = width / targetRatio;
+			}
+			sx = (sw - width) / 2;
+			sy = (sh - height) / 2;
+		}
 
-      height *= this.maxWidth / width;
-      width = this.maxWidth;
-    }
-    if (height > this.maxHeight) {
-      cropWidth *= this.maxHeight / height;
-      cropHeight *= this.maxHeight / height;
+		// Resize (preserve ratio). Target width/height cannot be above max
+		if (width > this.maxWidth) {
+			cropWidth *= this.maxWidth / width;
+			cropHeight *= this.maxWidth / width;
 
-      width *= this.maxHeight / height;
-      height = this.maxHeight;
-    }
+			height *= this.maxWidth / width;
+			width = this.maxWidth;
+		}
+		if (height > this.maxHeight) {
+			cropWidth *= this.maxHeight / height;
+			cropHeight *= this.maxHeight / height;
 
-    // Use exact target width
-    width = Math.round(width);
-    height = Math.round(height);
+			width *= this.maxHeight / height;
+			height = this.maxHeight;
+		}
 
-    // Create a canvas at the target size with the right ratio
-    let canvas = document.createElement("canvas");
-    canvas.width = width;
-    canvas.height = height;
+		// Use exact target width
+		width = Math.round(width);
+		height = Math.round(height);
 
-    let ctx = canvas.getContext("2d");
-    ctx.imageSmoothingEnabled = true;
-    ctx.imageSmoothingQuality = "high";
+		// Create a canvas at the target size with the right ratio
+		const canvas = document.createElement("canvas");
+		canvas.width = width;
+		canvas.height = height;
 
-    if (needCrop) {
-      ctx.drawImage(img, sx, sy, sw, sh, 0, 0, cropWidth, cropHeight);
-    } else {
-      ctx.drawImage(img, 0, 0, width, height);
-    }
+		const ctx = canvas.getContext("2d");
+		ctx.imageSmoothingEnabled = true;
+		ctx.imageSmoothingQuality = "high";
 
-    // @link https://caniuse.com/?search=toblob
-    ctx.canvas.toBlob(
-      (blob) => {
-        this.createProcessedFile(file, blob, callback);
-      },
-      file.type,
-      this.quality
-    );
-  }
+		if (needCrop) {
+			ctx.drawImage(img, sx, sy, sw, sh, 0, 0, cropWidth, cropHeight);
+		} else {
+			ctx.drawImage(img, 0, 0, width, height);
+		}
 
-  /**
-   * @returns {Number}
-   */
-  getTargetRatio() {
-    if (!this.imageRatio) {
-      return 0;
-    }
-    return parseInt(this.imageRatio[0]) / parseInt(this.imageRatio[1]);
-  }
+		// @link https://caniuse.com/?search=toblob
+		ctx.canvas.toBlob(
+			(blob) => {
+				this.createProcessedFile(file, blob, callback);
+			},
+			file.type,
+			this.quality,
+		);
+	}
 
-  /**
-   * @param {File} file
-   * @param {Function} callback
-   */
-  handleResizeImage(file, callback) {
-    if (!file.type.match(/image.*/)) {
-      callback();
-      return;
-    }
-    if (this.disableResize) {
-      callback();
-      return;
-    }
+	/**
+	 * @returns {Number}
+	 */
+	getTargetRatio() {
+		if (!this.imageRatio) {
+			return 0;
+		}
+		return parseInt(this.imageRatio[0], 10) / parseInt(this.imageRatio[1], 10);
+	}
 
-    let reader = new FileReader();
-    reader.onload = (ev) => {
-      let img = new Image();
-      // We need to wait until image is loaded
-      // Otherwise size is not set
-      img.onload = () => {
-        this.resizeImage(file, img, callback);
-      };
-      img.onerror = (ev) => {
-        // Maybe the image format is not supported
-      };
-      //@ts-ignore yes, it's a string
-      img.src = ev.target.result;
-    };
-    reader.onerror = (ev) => {
-      console.log(ev);
-    };
-    reader.readAsDataURL(file);
-  }
+	/**
+	 * @param {File} file
+	 * @param {Function} callback
+	 */
+	handleResizeImage(file, callback) {
+		if (!file.type.match(/image.*/)) {
+			callback();
+			return;
+		}
+		if (this.disableResize) {
+			callback();
+			return;
+		}
 
-  /**
-   * This will rotate the file and drop exif metadata
-   * @param {File|Object} file we use type and name properties
-   * @param {Blob} blob
-   * @param {Function} callback
-   */
-  createProcessedFile(file, blob, callback) {
-    let resizedFile = new File([blob], file.name, {
-      type: file.type,
-      lastModified: Date.now(),
-    });
+		const reader = new FileReader();
+		reader.onload = (ev) => {
+			const img = new Image();
+			// We need to wait until image is loaded
+			// Otherwise size is not set
+			img.onload = () => {
+				this.resizeImage(file, img, callback);
+			};
+			img.onerror = () => {
+				// Maybe the image format is not supported
+			};
+			//@ts-expect-error yes, it's a string
+			img.src = ev.target.result;
+		};
+		reader.onerror = (ev) => {
+			console.log(ev);
+		};
+		reader.readAsDataURL(file);
+	}
 
-    // We cannot manipulate the FileList directly
-    // @link https://developer.mozilla.org/en-US/docs/Web/API/DataTransfer
-    let container = new DataTransfer();
-    for (let i = 0; i < this.inputElement.files.length; i++) {
-      let fileItem = this.inputElement.files[i];
-      if (fileItem.name === file.name) {
-        container.items.add(resizedFile);
-      } else {
-        container.items.add(fileItem);
-      }
-    }
-    // It's a new file
-    if (!file.lastModified) {
-      container.items.add(resizedFile);
-    }
-    this.inputElement.files = container.files;
+	/**
+	 * This will rotate the file and drop exif metadata
+	 * @param {File|Object} file we use type and name properties
+	 * @param {Blob} blob
+	 * @param {Function} callback
+	 */
+	createProcessedFile(file, blob, callback) {
+		const resizedFile = new File([blob], file.name, {
+			type: file.type,
+			lastModified: Date.now(),
+		});
 
-    callback();
-  }
+		// We cannot manipulate the FileList directly
+		// @link https://developer.mozilla.org/en-US/docs/Web/API/DataTransfer
+		const container = new DataTransfer();
+		for (let i = 0; i < this.inputElement.files.length; i++) {
+			const fileItem = this.inputElement.files[i];
+			if (fileItem.name === file.name) {
+				container.items.add(resizedFile);
+			} else {
+				container.items.add(fileItem);
+			}
+		}
+		// It's a new file
+		if (!file.lastModified) {
+			container.items.add(resizedFile);
+		}
+		this.inputElement.files = container.files;
 
-  /**
-   * @param {Function} callback
-   */
-  processFiles(callback) {
-    let files = this.inputElement.files;
-    if (!files.length) {
-      callback();
-      return;
-    }
-    for (let i = 0; i < files.length; i++) {
-      this.handleResizeImage(files[i], callback);
-    }
-  }
+		callback();
+	}
+
+	/**
+	 * @param {Function} callback
+	 */
+	processFiles(callback) {
+		const files = this.inputElement.files;
+		if (!files.length) {
+			callback();
+			return;
+		}
+		for (let i = 0; i < files.length; i++) {
+			this.handleResizeImage(files[i], callback);
+		}
+	}
 }
 
 export default Superfile;
