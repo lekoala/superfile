@@ -1,7 +1,9 @@
 // Development tooling only: stop the listener on the fixture server's port.
 import { execFileSync } from "node:child_process";
 
-const port = 4178;
+const port = Number(process.env.SUPERFILE_PORT || 4178);
+if (!Number.isInteger(port) || port < 1 || port > 65535)
+	throw new Error("SUPERFILE_PORT must be an integer between 1 and 65535");
 
 if (process.platform === "win32") {
 	const output = execFileSync("netstat.exe", ["-ano", "-p", "tcp"], {

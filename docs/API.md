@@ -161,7 +161,7 @@ All English UI text can be customized through these optional settings:
 | `labels.error` | `File preparation failed. Select files again or clear the field.` |
 | `labels.remove` | `Remove` in the default renderer; custom template text is retained unless this option is supplied |
 | `labels.removeLabel(file)` | Accessible label `Remove ${file.name}`, using the prepared file |
-| `formatSize(bytes)` | `${bytes} bytes`; called for both original and prepared sizes when transformed, joined by ` → ` |
+| `formatSize(bytes)` | Readable decimal units (`B`, `kB`, `MB`…), at most one decimal place using the browser locale, e.g. `2 MB` for 2,003,508 bytes; called for both original and prepared sizes when transformed, joined by ` → ` |
 | `formatError(error, entry)` | `error.message`; receives the entry snapshot for per-file context |
 
 For a French preview, reuse `translateError` above:

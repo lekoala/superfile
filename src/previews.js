@@ -1,4 +1,15 @@
 import { configurationError } from "./errors.js";
+
+function formatBytes(bytes) {
+	const units = ["B", "kB", "MB", "GB", "TB", "PB"];
+	let unit = 0;
+	while (bytes >= 1000 && unit < units.length - 1) {
+		bytes /= 1000;
+		unit++;
+	}
+	return `${new Intl.NumberFormat(undefined, { maximumFractionDigits: 1 }).format(bytes)} ${units[unit]}`;
+}
+
 /**
  * Optional, transport-independent previews. No styles or markup required by core.
  * @param {import("../superfile.js").default} sf
@@ -12,7 +23,7 @@ export function connectPreviews(
 		image,
 		status,
 		labels = {},
-		formatSize = (bytes) => `${bytes} bytes`,
+		formatSize = formatBytes,
 		formatError = (error) => error.message,
 	} = {},
 ) {

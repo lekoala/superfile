@@ -81,6 +81,8 @@ bun run lint
 bun run build
 ```
 
+`start` stays in the foreground and prints the server URL; use Ctrl+C to stop it. `stop` terminates the process listening on port 4178, and does nothing if the port is free. `restart` stops that listener before starting again. Windows uses built-in `netstat`/`taskkill`; macOS/Linux require `lsof`. Set `SUPERFILE_PORT` to use another port for these commands (browser tests still use 4178).
+
 Browser contracts run in Chromium, Firefox and WebKit, including real multipart submissions to a local receiver. Real-device iOS/Android and wide-gamut/large-camera-image testing remain release checks. See [testing details](docs/TESTING.md).
 
 For systematic EXIF handling, wrap the image processor with `createExifProcessor` from `superfile/exif`. It removes EXIF even from otherwise unchanged images, or explicitly preserves JPEG EXIF using an application-supplied codec. See [EXIF policies](docs/EXIF.md).

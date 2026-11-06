@@ -13,6 +13,7 @@ export interface PreviewOptions {
 		remove?: string;
 		removeLabel?: (file: File) => string;
 	};
+	/** Defaults to decimal units (B, kB, MB…), localized with at most one decimal. */
 	formatSize?: (bytes: number) => string;
 	formatError?: (error: Error, entry: Readonly<FileEntry>) => string;
 }

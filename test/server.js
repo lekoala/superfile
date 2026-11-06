@@ -5,11 +5,15 @@ import { createServer } from "node:http";
 import { extname, resolve, sep } from "node:path";
 
 const root = resolve(import.meta.dirname, "..");
+const port = Number(process.env.SUPERFILE_PORT || 4178);
+if (!Number.isInteger(port) || port < 1 || port > 65535)
+	throw new Error("SUPERFILE_PORT must be an integer between 1 and 65535");
+const origin = `http://127.0.0.1:${port}`;
 const escapeHTML = (value) =>
 	value.replaceAll("&", "&amp;").replaceAll("<", "&lt;");
 const server = createServer(async (req, res) => {
 	try {
-		const url = new URL(req.url, "http://127.0.0.1:4178");
+		const url = new URL(req.url, origin);
 		if (req.method === "POST") {
 			const chunks = [];
 			for await (const chunk of req) chunks.push(chunk);
@@ -66,4 +70,14 @@ const server = createServer(async (req, res) => {
 		res.end("Not found");
 	}
 });
-server.listen(4178, "127.0.0.1");
+server.on("error", (error) => {
+	console.error(
+		error.code === "EADDRINUSE"
+			? `Port ${port} is already in use. Run "bun run restart" to stop its listener and start again.`
+			: error,
+	);
+	process.exitCode = 1;
+});
+server.listen(port, "127.0.0.1", () => {
+	console.log(`Superfile development server: ${origin}/ (Ctrl+C to stop)`);
+});

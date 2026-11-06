@@ -6,8 +6,8 @@
   "scripts": {
     "build": "bun build ./superfile.js --target browser --minify --outfile ./superfile.min.js",
     "watch": "bun run build --watch",
-    "start": "bun test/server.js",
-    "stop": "bun scripts/stop-server.js",
+    "start": "bun run ./test/server.js",
+    "stop": "bun run ./scripts/stop-server.js",
     "restart": "bun run stop && bun run start",
     "test": "bun test",
     "test:browser": "bun ./node_modules/@playwright/test/cli.js test",
