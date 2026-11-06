@@ -129,6 +129,8 @@ input.addEventListener('superfile:error', ({ detail }) => {
 
 One capture listener per form blocks premature submit events and resumes once with `requestSubmit(originalSubmitter)`. It waits for all enabled Superfile controls, including external inputs with `form="..."`. Multiple clicks during processing retain the **first** submitter. Native validation runs again; submitter action, method, encoding and validation overrides are retained. `method="dialog"` closes the dialog without waiting for file preparation.
 
+The coordinator reads method attributes directly, so a control named `method` cannot bypass the preparation guard by shadowing `form.method`. A present but empty or invalid `formmethod` uses the browser's GET behavior, including when the form itself has `method="dialog"`.
+
 Reset, clear, disposal, reassignment of a control to another form, removal of the submitter, or a detached form cancel pending submission. Canceled native resets leave the selection intact. After a native reset, Superfile state is cleared in a microtask, once cancellation has been checked.
 
 The native guard does not intercept `form.submit()` or arbitrary manual `FormData` construction. Native validation can prevent a submit event from being raised at all, e.g. a required field still empty during a programmatic addition. In that case there is no submit intent to replay; submit after readiness. See [external transports](EXTENDING.md).

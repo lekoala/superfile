@@ -624,6 +624,10 @@ test("method=dialog can close while files are preparing", async ({ page }) => {
 			const form = document.querySelector("#form");
 			dialog.append(form);
 			form.method = "dialog";
+			const hidden = document.createElement("input");
+			hidden.name = "method";
+			hidden.type = "hidden";
+			form.append(hidden);
 			dialog.showModal();
 			const ready = window.sf.addFiles([new File(["a"], "a.txt")]);
 			form.requestSubmit(document.querySelector("#save"));

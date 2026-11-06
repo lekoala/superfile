@@ -5,6 +5,88 @@ test.beforeEach(async ({ page }) => {
 	await page.waitForFunction(() => window.api);
 });
 
+for (const { method, override } of [
+	{ method: "post", override: null },
+	{ method: null, override: null },
+	{ method: "dialog", override: "" },
+	{ method: "dialog", override: "invalid" },
+]) {
+	test(`a named method control cannot bypass preparation (method=${method}, formmethod=${JSON.stringify(override)})`, async ({
+		page,
+	}) => {
+		const errors = [];
+		page.on("pageerror", (error) => errors.push(error.message));
+		expect(
+			await page.evaluate(
+				({ method, override }) => {
+					const form = document.querySelector("#form");
+					if (method === null) form.removeAttribute("method");
+					else form.setAttribute("method", method);
+					const hidden = document.createElement("input");
+					hidden.type = "hidden";
+					hidden.name = "method";
+					hidden.value = "PUT";
+					form.append(hidden);
+					const button = document.querySelector("#save");
+					if (override !== null) button.setAttribute("formmethod", override);
+					let release;
+					const gate = new Promise((resolve) => {
+						release = resolve;
+					});
+					window.releaseProcessing = release;
+					window.sf = new window.api.Superfile(
+						document.querySelector("#files"),
+						{
+							async process(file) {
+								await gate;
+								return new File(["prepared bytes"], `${file.name}.prepared`);
+							},
+						},
+					);
+					window.submissions = 0;
+					window.submitted = new Promise((resolve) => {
+						document.addEventListener("submit", async (event) => {
+							if (event.defaultPrevented) return;
+							event.preventDefault();
+							window.submissions++;
+							const data = new FormData(form, event.submitter);
+							const file = data.get("files");
+							resolve({
+								name: file.name,
+								bytes: await file.text(),
+								method: data.get("method"),
+							});
+						});
+					});
+					const transfer = new DataTransfer();
+					transfer.items.add(new File(["raw bytes"], "a.jpg"));
+					window.sf.input.files = transfer.files;
+					window.sf.input.dispatchEvent(new Event("change", { bubbles: true }));
+					form.requestSubmit(button);
+					return {
+						shadowed: form.method === hidden,
+						submissions: window.submissions,
+						rawName: window.sf.files[0].name,
+					};
+				},
+				{ method, override },
+			),
+		).toEqual({ shadowed: true, submissions: 0, rawName: "a.jpg" });
+		expect(
+			await page.evaluate(async () => {
+				window.releaseProcessing();
+				return window.submitted;
+			}),
+		).toEqual({
+			name: "a.jpg.prepared",
+			bytes: "prepared bytes",
+			method: "PUT",
+		});
+		expect(await page.evaluate(() => window.submissions)).toBe(1);
+		expect(errors).toEqual([]);
+	});
+}
+
 test("ready listener and queued user intent cannot cause a double submission", async ({
 	page,
 }) => {

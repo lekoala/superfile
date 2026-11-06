@@ -12,7 +12,12 @@ function coordinator(form) {
 	state.submit = (event) => {
 		if (event.defaultPrevented) return;
 		const submitter = event.submitter;
-		const method = submitter?.getAttribute("formmethod") || form.method;
+		// Named controls can shadow form.method. An empty override means GET,
+		// rather than falling back to a possible method="dialog" on the form.
+		const method =
+			submitter?.getAttribute("formmethod") ??
+			form.getAttribute("method") ??
+			"get";
 		if (method.toLowerCase() === "dialog") {
 			state.cancel();
 			return;
