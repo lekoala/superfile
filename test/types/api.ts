@@ -1,4 +1,8 @@
-import Superfile, { type SuperfileEventDetail } from "superfile";
+import Superfile, {
+	type SuperfileError,
+	type SuperfileErrorCode,
+	type SuperfileEventDetail,
+} from "superfile";
 import { createExifProcessor, type ExifCodec, readExif } from "superfile/exif";
 import { createImageProcessor } from "superfile/image";
 import { connectPreviews } from "superfile/previews";
@@ -17,7 +21,23 @@ const sf = new Superfile(input, {
 });
 const previews = connectPreviews(sf, {
 	container: document.createElement("div"),
+	labels: {
+		preparing: "Préparation…",
+		error: "Échec.",
+		remove: "Supprimer",
+		removeLabel: (file) => `Supprimer ${file.name}`,
+	},
+	formatSize: (bytes) => `${bytes} octets`,
+	formatError: (error, entry) => `${entry.file.name}: ${error.message}`,
 });
+const errorCode: SuperfileErrorCode = "MAX_SIZE";
+const libraryFailure: SuperfileError = Object.assign(new Error("Too large"), {
+	code: errorCode,
+});
+console.log(libraryFailure.code, libraryFailure.cause);
+// @ts-expect-error no additional stable codes are promised
+const invalidCode: SuperfileErrorCode = "BUSINESS_RULE";
+console.log(invalidCode);
 const entries = await sf.addFiles([new File([], "photo.png")]);
 if (entries[0]) await sf.removeFile(entries[0].id);
 input.addEventListener("superfile:ready", (event) => {

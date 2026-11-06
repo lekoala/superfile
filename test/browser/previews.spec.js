@@ -95,3 +95,105 @@ test("template binding and adjacent focus after removal", async ({ page }) => {
 		page.getByRole("button", { name: "Remove b.pdf", exact: true }),
 	).toBeFocused();
 });
+
+test("broken thumbnails become neutral rows and release their URLs", async ({
+	page,
+}) => {
+	await page.evaluate(() =>
+		window.sf.addFiles([
+			new File(["invalid image"], "broken.png", { type: "image/png" }),
+		]),
+	);
+	await expect(page.locator("[data-superfile-thumbnail]")).toBeHidden();
+	await expect(page.locator("[data-superfile-thumbnail]")).not.toHaveAttribute(
+		"src",
+	);
+	await expect(page.locator("#avatar")).toBeHidden();
+	await expect(page.locator("#avatar")).not.toHaveAttribute("src");
+	await expect(page.locator("[data-superfile-name]")).toHaveText("broken.png");
+	expect(
+		await page.evaluate(() => ({
+			remaining: window.created.filter((url) => !window.revoked.includes(url)),
+			duplicateRevocations:
+				window.revoked.length - new Set(window.revoked).size,
+		})),
+	).toEqual({ remaining: [], duplicateRevocations: 0 });
+	await page.getByRole("button", { name: "Remove broken.png" }).click();
+	await expect(page.locator("#previews")).toBeEmpty();
+});
+
+test("French labels and formatters cover preparation, prepared files and errors", async ({
+	page,
+}) => {
+	await page.evaluate(() => {
+		window.previews.dispose();
+		window.sf.dispose();
+		window.sf = new window.api.Superfile(document.querySelector("#files"), {
+			maxSize: 10,
+			process: () =>
+				new Promise((resolve) => {
+					window.finish = () =>
+						resolve(new File(["ok"], "préparé.txt", { type: "text/plain" }));
+				}),
+		});
+		window.previews = window.api.connectPreviews(window.sf, {
+			container: document.querySelector("#previews"),
+			labels: {
+				preparing: "Préparation…",
+				error: "Échec de la préparation.",
+				remove: "Supprimer",
+				removeLabel: (file) => `Supprimer ${file.name}`,
+			},
+			formatSize: (bytes) => `${bytes} octets`,
+			formatError: (error, entry) =>
+				`${entry.file.name} : ${error.code === "MAX_SIZE" ? "Fichier trop volumineux" : error.message}`,
+		});
+		window.pending = window.sf.addFiles([new File(["source"], "original.txt")]);
+	});
+	await expect(page.getByRole("status")).toHaveText("Préparation…");
+	await page.waitForFunction(() => window.finish);
+	await page.evaluate(async () => {
+		window.finish();
+		await window.pending;
+	});
+	await expect(page.locator("[data-superfile-name]")).toHaveText("préparé.txt");
+	await expect(page.locator("[data-superfile-size]")).toHaveText(
+		"6 octets → 2 octets",
+	);
+	await expect(
+		page.getByRole("button", { name: "Supprimer préparé.txt" }),
+	).toHaveText("Supprimer");
+	await page.evaluate(() =>
+		window.sf
+			.addFiles([new File(["12345678901"], "grand.txt")])
+			.catch(() => {}),
+	);
+	await expect(page.getByRole("status")).toHaveText("Échec de la préparation.");
+	await expect(page.locator("[data-superfile-error]").last()).toHaveText(
+		"grand.txt : Fichier trop volumineux",
+	);
+});
+
+test("obsolete thumbnail errors cannot hide a replacement avatar", async ({
+	page,
+}) => {
+	expect(
+		await page.evaluate(async () => {
+			await window.sf.addFiles([
+				new File(["broken"], "a.png", { type: "image/png" }),
+			]);
+			const oldRow = document.querySelector("[data-superfile-thumbnail]");
+			window.sf.clear();
+			await window.sf.addFiles([
+				new File(["broken"], "b.png", { type: "image/png" }),
+			]);
+			const avatar = document.querySelector("#avatar");
+			const url = avatar.getAttribute("src");
+			oldRow.dispatchEvent(new Event("error"));
+			return {
+				same: avatar.getAttribute("src") === url,
+				hidden: avatar.hidden,
+			};
+		}),
+	).toEqual({ same: true, hidden: false });
+});

@@ -55,6 +55,7 @@ test("configuration is validated before configure and rejects invalid factories"
 				try {
 					new window.api.Superfile(input, options);
 				} catch (error) {
+					if (error.code !== "CONFIGURATION") throw error;
 					errors.push(error.message);
 				}
 			}
@@ -157,12 +158,19 @@ test("commit failures have a null batch id, including ignored same-length writes
 			} catch {}
 			return {
 				id: detail.id,
+				code: detail.error.code,
 				state: sf.state,
 				entryErrors: sf.entries.filter((entry) => entry.error).length,
 				content: await sf.files[0].text(),
 			};
 		}),
-	).toEqual({ id: null, state: "error", entryErrors: 0, content: "old" });
+	).toEqual({
+		id: null,
+		code: "FILE_LIST",
+		state: "error",
+		entryErrors: 0,
+		content: "old",
+	});
 });
 
 test("dispose clears processing state and event snapshots", async ({

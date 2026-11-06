@@ -83,6 +83,48 @@ No synthetic `change` after preparation, no upload progress and no network-succe
 
 A supported file drop emits one bubbling synthetic `change` with the raw selection before processors run. Use `whenReady()` for prepared files. File drag/drop defaults are canceled even when the input is disabled; disabled inputs do not select files. Drop events continue bubbling, so wrapper/document listeners can observe them. Programmatic `addFiles()` and `removeFile()` do not emit `change`.
 
+## Stable error codes
+
+Errors created by the library have a `code` from the exported TypeScript union `SuperfileErrorCode`. `SuperfileError` describes an `Error` with that code; it is a type, not a runtime class. Messages remain diagnostic and may change. Configuration and processor-result errors retain `TypeError` where applicable; other failures use `Error`.
+
+| Code | Meaning |
+| --- | --- |
+| `CONFIGURATION` | Invalid options, initialization, arguments or unavailable API operation (including directory restrictions) |
+| `MAX_SIZE` | Original file exceeds `maxSize` |
+| `PROCESSOR_RESULT` | A processor returned neither a File nor a supported result containing a File |
+| `FILE_LIST` | DataTransfer construction, population or assignment failed, or the browser ignored the FileList write |
+| `DECODE` | Image decoding failed or produced unusable dimensions |
+| `ENCODE` | Canvas preparation or image encoding failed, including a missing output Blob |
+| `UNSUPPORTED_FORMAT` | A required image transformation or EXIF preservation cannot support the source/output format; also a browser returning a different output MIME |
+| `EXIF_CONTAINER` | Malformed, ambiguous or unsupported EXIF container, or pixels whose orientation prevents the requested EXIF operation |
+
+Blocking failures expose the same error through `superfile:error`, the affected entry (if any), and readiness rejection. FileList failures use a null event `id`. Exceptions from native FileList writes and image decoding/encoding are wrapped with the original exception in `cause`.
+
+Errors thrown by application callbacks (`validate`, `process`, `configure`, `onMetadata`, supplied EXIF codec methods, and preview formatters) are not assigned library codes. Existing Error objects retain their identity and custom properties. The core still converts non-Error rejections into Error diagnostics without adding a code. Cancellation keeps its native `AbortError`/AbortSignal reason; DOMException's native numeric `code` is unrelated to this union. Optional image fallbacks continue returning decisions rather than errors.
+
+Use codes for translation, with a separate application-error policy. For example:
+
+```js
+const messages = {
+  CONFIGURATION: 'Configuration du champ fichier invalide.',
+  MAX_SIZE: 'Fichier trop volumineux.',
+  PROCESSOR_RESULT: 'Le traitement a renvoyé un fichier invalide.',
+  FILE_LIST: 'Impossible de mettre à jour les fichiers du champ.',
+  DECODE: 'Impossible de lire cette image.',
+  ENCODE: 'Impossible de préparer cette image.',
+  UNSUPPORTED_FORMAT: 'Ce format ne permet pas le traitement demandé.',
+  EXIF_CONTAINER: 'Les métadonnées de cette image ne peuvent pas être traitées.',
+};
+function translateError(error) {
+  return Object.hasOwn(messages, error.code)
+    ? messages[error.code]
+    : error.message; // Application chooses how to present its own errors.
+}
+input.addEventListener('superfile:error', ({ detail }) => {
+  errorElement.textContent = translateError(detail.error);
+});
+```
+
 ## Native form submission
 
 One capture listener per form blocks premature submit events and resumes once with `requestSubmit(originalSubmitter)`. It waits for all enabled Superfile controls, including external inputs with `form="..."`. Multiple clicks during processing retain the **first** submitter. Native validation runs again; submitter action, method, encoding and validation overrides are retained. `method="dialog"` closes the dialog without waiting for file preparation.
@@ -108,3 +150,34 @@ Only `container` is required. `template` is an optional HTMLTemplateElement clon
 Supported template slots: `data-superfile-name`, `data-superfile-size`, `data-superfile-type`, `data-superfile-error`, `data-superfile-thumbnail` on an image, and `data-superfile-remove` on a button. Names are assigned with textContent. The default renderer provides the same slots without a template.
 
 PDF and other non-image files get neutral rows. Individual removal is disabled for failed batches and directory inputs. Object URLs are revoked on every replacement, clear and disposal; keyboard focus moves to an adjacent removal button or the original input.
+
+Previews bind `entry.file`, so names, types, sizes and thumbnails reflect the prepared file. An image that fails to decode is hidden and its URL is immediately revoked; the neutral row and removal control remain. Old image error listeners are removed when replacing or disposing previews, including the standalone image.
+
+All English UI text can be customized through these optional settings:
+
+| Option | Default / behavior |
+| --- | --- |
+| `labels.preparing` | `Preparing files…` |
+| `labels.error` | `File preparation failed. Select files again or clear the field.` |
+| `labels.remove` | `Remove` in the default renderer; custom template text is retained unless this option is supplied |
+| `labels.removeLabel(file)` | Accessible label `Remove ${file.name}`, using the prepared file |
+| `formatSize(bytes)` | `${bytes} bytes`; called for both original and prepared sizes when transformed, joined by ` → ` |
+| `formatError(error, entry)` | `error.message`; receives the entry snapshot for per-file context |
+
+For a French preview, reuse `translateError` above:
+
+```js
+const view = connectPreviews(sf, {
+  container,
+  labels: {
+    preparing: 'Préparation des fichiers…',
+    error: 'Échec de la préparation. Sélectionnez à nouveau les fichiers ou videz le champ.',
+    remove: 'Supprimer',
+    removeLabel: file => `Supprimer ${file.name}`,
+  },
+  formatSize: bytes => `${new Intl.NumberFormat('fr-FR').format(bytes)} octets`,
+  formatError: translateError,
+});
+```
+
+Labels and formatter results are assigned as text, never interpreted as HTML. A supplied `status` element is cleared on disposal. No success-count announcement is added by default.

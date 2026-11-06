@@ -1,3 +1,4 @@
+import { configurationError, libraryError } from "./errors.js";
 import { createImageProcessor, normalizeImage } from "./image.js";
 import { detectImageType } from "./image-types.js";
 
@@ -5,7 +6,7 @@ const jpeg = "image/jpeg";
 const png = "image/png";
 const webp = "image/webp";
 const fail = () => {
-	throw new Error("Malformed or unsupported EXIF image");
+	throw libraryError("EXIF_CONTAINER", "Malformed or unsupported EXIF image");
 };
 const matches = (bytes, offset, values) =>
 	values.every((value, index) => bytes[offset + index] === value);
@@ -129,7 +130,10 @@ export function inspectExif(bytes, type) {
 export function removeExifBytes(bytes, type) {
 	const { ranges, oriented } = inspectExif(bytes, type);
 	if (oriented)
-		throw new Error("EXIF orientation must be applied before removal");
+		throw libraryError(
+			"EXIF_CONTAINER",
+			"EXIF orientation must be applied before removal",
+		);
 	if (!ranges.length) return bytes;
 	const result = new Uint8Array(
 		bytes.length - ranges.reduce((sum, [start, end]) => sum + end - start, 0),
@@ -203,7 +207,7 @@ function validateCodec(codec) {
 		!codec ||
 		["load", "dump", "insert"].some((key) => typeof codec[key] !== "function")
 	)
-		throw new TypeError("A piexifjs-compatible codec is required");
+		throw configurationError("A piexifjs-compatible codec is required");
 }
 
 function imageType(bytes, declared) {
@@ -227,7 +231,10 @@ function extractMetadata(bytes, codec) {
 	const { ranges } = inspectExif(bytes, jpeg);
 	if (!ranges.length) return null;
 	if (ranges.length > 1)
-		throw new Error("Multiple EXIF blocks cannot be decoded unambiguously");
+		throw libraryError(
+			"EXIF_CONTAINER",
+			"Multiple EXIF blocks cannot be decoded unambiguously",
+		);
 	const [start, end] = ranges[0];
 	let at = start;
 	while (bytes[at] === 255) at++;
@@ -256,6 +263,9 @@ async function dimensions(file, input, signal) {
 		await image.decode();
 		signal.throwIfAborted();
 		return [image.naturalWidth, image.naturalHeight];
+	} catch (cause) {
+		signal.throwIfAborted();
+		throw libraryError("DECODE", `Cannot decode ${file.name}`, Error, cause);
 	} finally {
 		signal.removeEventListener("abort", cancel);
 		image.src = "";
@@ -275,13 +285,13 @@ export function createExifProcessor(options = {}) {
 		onMetadata,
 	} = options;
 	if (!["remove", "preserve"].includes(mode))
-		throw new TypeError("Invalid EXIF mode");
+		throw configurationError("Invalid EXIF mode");
 	if (typeof preserveGPS !== "boolean")
-		throw new TypeError("preserveGPS must be boolean");
+		throw configurationError("preserveGPS must be boolean");
 	if (process !== undefined && typeof process !== "function")
-		throw new TypeError("process must be a function");
+		throw configurationError("process must be a function");
 	if (onMetadata !== undefined && typeof onMetadata !== "function")
-		throw new TypeError("onMetadata must be a function");
+		throw configurationError("onMetadata must be a function");
 	if (mode === "preserve" || onMetadata) validateCodec(codec);
 	const processor = (file, context) =>
 		processor.configure(context.input)(file, context);
@@ -298,7 +308,10 @@ export function createExifProcessor(options = {}) {
 			const originalType = imageType(originalBytes, original.type);
 			signal.throwIfAborted();
 			if (mode === "preserve" && originalType && originalType !== jpeg)
-				throw new Error("EXIF preservation only supports JPEG");
+				throw libraryError(
+					"UNSUPPORTED_FORMAT",
+					"EXIF preservation only supports JPEG",
+				);
 			const metadata =
 				originalType === jpeg && (mode === "preserve" || onMetadata)
 					? extractMetadata(originalBytes, codec)
@@ -326,7 +339,11 @@ export function createExifProcessor(options = {}) {
 					? processed.file
 					: processed;
 			if (!(file instanceof input.ownerDocument.defaultView.File))
-				throw new TypeError("An EXIF image processor must return a File");
+				throw libraryError(
+					"PROCESSOR_RESULT",
+					"An EXIF image processor must return a File",
+					TypeError,
+				);
 			signal.throwIfAborted();
 			let bytes =
 				file === source
@@ -360,14 +377,20 @@ export function createExifProcessor(options = {}) {
 				};
 			}
 			if (file.type !== jpeg)
-				throw new Error("EXIF preservation requires JPEG output");
+				throw libraryError(
+					"UNSUPPORTED_FORMAT",
+					"EXIF preservation requires JPEG output",
+				);
 			if (!tags) return { file, decision: "exif-absent" };
 			if (!preserveGPS) tags.GPS = {};
 			tags["1st"] = {};
 			tags.thumbnail = null;
 			if (file !== source) {
 				if (info.oriented)
-					throw new Error("Transformed JPEG must have normalized pixels");
+					throw libraryError(
+						"EXIF_CONTAINER",
+						"Transformed JPEG must have normalized pixels",
+					);
 				const [width, height] = await dimensions(file, input, signal);
 				tags["0th"][274] = 1;
 				tags["0th"][256] = width;

@@ -1,3 +1,4 @@
+import { configurationError, libraryError } from "./errors.js";
 import { detectImageType } from "./image-types.js";
 
 const safeTypes = new Set(["image/jpeg", "image/png", "image/webp"]);
@@ -26,9 +27,10 @@ function number(value, name) {
 		(typeof value !== "number" && typeof value !== "string") ||
 		String(value).trim() === ""
 	)
-		throw new TypeError(`${name} must be a number`);
+		throw configurationError(`${name} must be a number`);
 	const result = Number(value);
-	if (!Number.isFinite(result)) throw new TypeError(`${name} must be finite`);
+	if (!Number.isFinite(result))
+		throw configurationError(`${name} must be finite`);
 	return result;
 }
 
@@ -43,37 +45,41 @@ export function parseImageOptions(options = {}) {
 		reencode: options.reencode ?? false,
 	};
 	if (typeof config.reencode !== "boolean")
-		throw new TypeError("reencode must be a boolean");
+		throw configurationError("reencode must be a boolean");
 	if (!["block", "original"].includes(config.fallback))
-		throw new TypeError("fallback must be block or original");
+		throw configurationError("fallback must be block or original");
 	for (const key of ["maxWidth", "maxHeight"]) {
 		if (options[key] == null) continue;
 		const value = number(options[key], key);
 		if (!Number.isInteger(value) || value <= 0)
-			throw new TypeError(`${key} must be a positive integer`);
+			throw configurationError(`${key} must be a positive integer`);
 		config[key] = value;
 	}
 	if (options.ratio != null) {
 		const parts = String(options.ratio).split(/[:/]/);
 		if (parts.length > 2)
-			throw new TypeError("ratio must be positive, e.g. 16:9 or 4/3");
+			throw configurationError("ratio must be positive, e.g. 16:9 or 4/3");
 		const values = parts.map((part) => number(part, "ratio"));
 		if (values.some((value) => value <= 0))
-			throw new TypeError("ratio must be positive");
+			throw configurationError("ratio must be positive");
 		config.ratio = values[0] / (values[1] ?? 1);
 		if (!Number.isFinite(config.ratio) || config.ratio <= 0)
-			throw new TypeError("ratio is out of range");
+			throw configurationError("ratio is out of range");
 	}
 	if (options.quality != null) {
 		let quality = number(options.quality, "quality");
 		if (quality > 1 && Number.isInteger(quality)) quality /= 100;
 		if (quality < 0 || quality > 1)
-			throw new TypeError("quality must be 0–1 or an integer percentage 0–100");
+			throw configurationError(
+				"quality must be 0–1 or an integer percentage 0–100",
+			);
 		config.quality = quality;
 	}
 	if (options.format != null) {
 		if (!safeTypes.has(options.format))
-			throw new TypeError("format must be image/jpeg, image/png or image/webp");
+			throw configurationError(
+				"format must be image/jpeg, image/png or image/webp",
+			);
 		config.format = options.format;
 	}
 	config.mandatory = !!(
@@ -142,12 +148,17 @@ async function decode(file, view, signal) {
 				reject(signal.reason);
 			};
 			image.onload = resolve;
-			image.onerror = () => reject(new Error(`Cannot decode ${file.name}`));
+			image.onerror = () =>
+				reject(libraryError("DECODE", `Cannot decode ${file.name}`));
 			signal?.addEventListener("abort", onAbort, { once: true });
 			abort(signal);
 			image.src = url;
 		});
 		return image;
+	} catch (cause) {
+		abort(signal);
+		if (cause?.code === "DECODE") throw cause;
+		throw libraryError("DECODE", `Cannot decode ${file.name}`, Error, cause);
 	} finally {
 		signal?.removeEventListener("abort", onAbort);
 		image.onload = null;
@@ -166,7 +177,8 @@ async function transform(file, config, { input, signal }) {
 		return { file, decision: "not-applicable" };
 	if (!safeTypes.has(sourceType) || (await animated(file, sourceType))) {
 		if (config.mandatory)
-			throw new Error(
+			throw libraryError(
+				"UNSUPPORTED_FORMAT",
 				`Mandatory transformation is unavailable for ${sourceType} (possibly animated)`,
 			);
 		return { file, decision: "unsupported-original" };
@@ -187,7 +199,8 @@ async function transform(file, config, { input, signal }) {
 		abort(signal);
 		const width = image.naturalWidth;
 		const height = image.naturalHeight;
-		if (!width || !height) throw new Error("Image has no usable dimensions");
+		if (!width || !height)
+			throw libraryError("DECODE", "Image has no usable dimensions");
 		const geometry = imageGeometry(width, height, config);
 		const type = config.format || sourceType;
 		const changed =
@@ -203,7 +216,7 @@ async function transform(file, config, { input, signal }) {
 		canvas.width = geometry.width;
 		canvas.height = geometry.height;
 		const context = canvas.getContext("2d");
-		if (!context) throw new Error("Canvas 2D is unavailable");
+		if (!context) throw libraryError("ENCODE", "Canvas 2D is unavailable");
 		if (type === "image/jpeg") {
 			context.fillStyle = config.background;
 			context.fillRect(0, 0, canvas.width, canvas.height);
@@ -226,14 +239,17 @@ async function transform(file, config, { input, signal }) {
 				(result) =>
 					result
 						? resolve(result)
-						: reject(new Error("Image encoding returned no Blob")),
+						: reject(libraryError("ENCODE", "Image encoding returned no Blob")),
 				type,
 				config.quality,
 			);
 		});
 		abort(signal);
 		if (blob.type !== type)
-			throw new Error(`Browser cannot encode ${type} (returned ${blob.type})`);
+			throw libraryError(
+				"UNSUPPORTED_FORMAT",
+				`Browser cannot encode ${type} (returned ${blob.type})`,
+			);
 		if (!required && blob.size >= file.size)
 			return { file, decision: "larger-original" };
 		const name =
@@ -250,7 +266,12 @@ async function transform(file, config, { input, signal }) {
 	} catch (error) {
 		if (!required && !signal?.aborted)
 			return { file, decision: "encoding-failed-original" };
-		throw error;
+		if (
+			signal?.aborted ||
+			["DECODE", "ENCODE", "UNSUPPORTED_FORMAT"].includes(error?.code)
+		)
+			throw error;
+		throw libraryError("ENCODE", "Image encoding failed", Error, error);
 	} finally {
 		image.src = "";
 		if (canvas) {

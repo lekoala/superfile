@@ -1,3 +1,19 @@
+/** Stable codes for library errors; callback errors and AbortError are unchanged. */
+export type SuperfileErrorCode =
+	| "CONFIGURATION"
+	| "MAX_SIZE"
+	| "PROCESSOR_RESULT"
+	| "FILE_LIST"
+	| "DECODE"
+	| "ENCODE"
+	| "UNSUPPORTED_FORMAT"
+	| "EXIF_CONTAINER";
+
+export interface SuperfileError extends Error {
+	readonly code: SuperfileErrorCode;
+	readonly cause?: unknown;
+}
+
 export interface FileEntry {
 	readonly id: string;
 	readonly original: File;

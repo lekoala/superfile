@@ -1,3 +1,4 @@
+import { configurationError, libraryError } from "./errors.js";
 import { cancelSubmission, syncForm, watchForm } from "./forms.js";
 
 const instances = new WeakMap();
@@ -24,41 +25,44 @@ export default class Superfile {
 			!(input instanceof view.HTMLInputElement) ||
 			input.type !== "file"
 		)
-			throw new TypeError("Superfile requires an input[type=file]");
+			throw configurationError("Superfile requires an input[type=file]");
 		if (instances.has(input))
-			throw new Error("This input already has a Superfile instance");
+			throw libraryError(
+				"CONFIGURATION",
+				"This input already has a Superfile instance",
+			);
 		if (imageAttributes.some((key) => key in input.dataset) && !options.process)
-			throw new TypeError(
+			throw configurationError(
 				"Image options require an explicit processor from superfile/image",
 			);
 		if (options.process !== undefined && typeof options.process !== "function")
-			throw new TypeError("process must be a function");
+			throw configurationError("process must be a function");
 		this._input = input;
 		if (
 			options.maxSize !== undefined &&
 			(!Number.isFinite(options.maxSize) || options.maxSize < 0)
 		)
-			throw new TypeError("maxSize must be a non-negative byte count");
+			throw configurationError("maxSize must be a non-negative byte count");
 		this._maxSize = options.maxSize;
 		this._validate = options.validate;
 		if (this._validate !== undefined && typeof this._validate !== "function")
-			throw new TypeError("validate must be a function");
+			throw configurationError("validate must be a function");
 		const zone =
 			options.dropTarget ||
 			input.closest("[data-superfile-drop], .superfile") ||
 			input;
 		if (!(zone instanceof view.HTMLElement))
-			throw new TypeError("dropTarget must be an HTML element");
+			throw configurationError("dropTarget must be an HTML element");
 		if (
 			options.process?.configure !== undefined &&
 			typeof options.process.configure !== "function"
 		)
-			throw new TypeError("process.configure must be a function");
+			throw configurationError("process.configure must be a function");
 		this._process = options.process?.configure
 			? options.process.configure(input)
 			: options.process;
 		if (options.process !== undefined && typeof this._process !== "function")
-			throw new TypeError("process.configure must return a function");
+			throw configurationError("process.configure must return a function");
 		this._entries = [];
 		this._committed = [];
 		this._validFiles = input.files;
@@ -171,14 +175,19 @@ export default class Superfile {
 		this._waiters.clear();
 	}
 	_write(files) {
-		const transfer = new this.input.ownerDocument.defaultView.DataTransfer();
-		for (const file of files) transfer.items.add(file);
-		this.input.files = transfer.files;
-		if (
-			this.input.files.length !== files.length ||
-			files.some((file, index) => this.input.files[index] !== file)
-		)
-			throw new Error("This browser cannot replace input.files");
+		const message = "This browser cannot replace input.files";
+		let written;
+		try {
+			const transfer = new this.input.ownerDocument.defaultView.DataTransfer();
+			for (const file of files) transfer.items.add(file);
+			this.input.files = transfer.files;
+			written =
+				this.input.files.length === files.length &&
+				files.every((file, index) => this.input.files[index] === file);
+		} catch (cause) {
+			throw libraryError("FILE_LIST", message, Error, cause);
+		}
+		if (!written) throw libraryError("FILE_LIST", message);
 	}
 	_start(entries, native = false, dropped = false) {
 		this._assertAlive();
@@ -219,7 +228,8 @@ export default class Superfile {
 				}
 				const directory = this.input.hasAttribute("webkitdirectory");
 				if (directory && (!native || this._process?.mandatory))
-					throw new Error(
+					throw libraryError(
+						"CONFIGURATION",
 						"Directory selections only support native passthrough without mandatory image transforms",
 					);
 				for (entry of this._entries) {
@@ -230,7 +240,7 @@ export default class Superfile {
 						this._maxSize !== undefined &&
 						entry.original.size > this._maxSize
 					)
-						throw new Error("File exceeds maxSize");
+						throw libraryError("MAX_SIZE", "File exceeds maxSize");
 					const context = {
 						input: this.input,
 						signal: controller.signal,
@@ -246,8 +256,10 @@ export default class Superfile {
 					if (!current()) return;
 					const file = result?.file || result;
 					if (!(file instanceof this.input.ownerDocument.defaultView.File))
-						throw new TypeError(
+						throw libraryError(
+							"PROCESSOR_RESULT",
 							"A processor must return a File or { file: File }",
+							TypeError,
 						);
 					entry.file = file;
 					entry.transformed = file !== entry.original;
@@ -287,16 +299,19 @@ export default class Superfile {
 	addFiles(files) {
 		this._assertAlive();
 		if (this.input.hasAttribute("webkitdirectory"))
-			throw new Error("addFiles is unavailable for directory inputs");
+			throw libraryError(
+				"CONFIGURATION",
+				"addFiles is unavailable for directory inputs",
+			);
 		const list = Array.from(files);
 		if (
 			!list.every(
 				(file) => file instanceof this.input.ownerDocument.defaultView.File,
 			)
 		)
-			throw new TypeError("addFiles requires Files");
+			throw configurationError("addFiles requires Files");
 		if (!this.input.multiple && list.length > 1)
-			throw new TypeError("Multiple files require the multiple attribute");
+			throw configurationError("Multiple files require the multiple attribute");
 		if (!list.length) return this.whenReady();
 		const previous = this._state === "error" ? this._committed : this._entries;
 		this._start([
@@ -308,9 +323,15 @@ export default class Superfile {
 	removeFile(id) {
 		this._assertAlive();
 		if (this.input.hasAttribute("webkitdirectory"))
-			throw new Error("Individual removal is unavailable for directory inputs");
+			throw libraryError(
+				"CONFIGURATION",
+				"Individual removal is unavailable for directory inputs",
+			);
 		if (this.state === "error")
-			throw new Error("Clear or select files again to resolve a failed batch");
+			throw libraryError(
+				"CONFIGURATION",
+				"Clear or select files again to resolve a failed batch",
+			);
 		if (!this._entries.some((entry) => entry.id === id))
 			return this.whenReady();
 		this._start(this._entries.filter((entry) => entry.id !== id));

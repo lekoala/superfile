@@ -29,6 +29,43 @@ const tags = (orientation = 1) => ({
 	},
 });
 
+test("EXIF errors distinguish configuration, containers, formats and processor results", async () => {
+	assert.throws(() => createExifProcessor({ mode: "invalid" }), {
+		name: "TypeError",
+		code: "CONFIGURATION",
+	});
+	assert.throws(() => inspectExif(new Uint8Array(), "image/jpeg"), {
+		code: "EXIF_CONTAINER",
+	});
+	assert.throws(() => removeExifBytes(makeJPEG(tags(6)), "image/jpeg"), {
+		code: "EXIF_CONTAINER",
+	});
+	const file = new File([bare], "test.jpg", { type: "image/jpeg" });
+	await assert.rejects(
+		createExifProcessor({ process: () => null })(file, context()),
+		{ name: "TypeError", code: "PROCESSOR_RESULT" },
+	);
+	const png = new File(
+		[new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10])],
+		"test.png",
+		{ type: "image/png" },
+	);
+	await assert.rejects(
+		createExifProcessor({ mode: "preserve", codec: piexif })(png, context()),
+		{ code: "UNSUPPORTED_FORMAT" },
+	);
+	const applicationError = new Error("codec failure");
+	await assert.rejects(
+		readExif(new File([makeJPEG(tags())], "test.jpg"), {
+			...piexif,
+			load() {
+				throw applicationError;
+			},
+		}),
+		(error) => error === applicationError && !("code" in error),
+	);
+});
+
 test("JPEG removal is lossless, removes every EXIF segment and preserves other APP1 data", () => {
 	const exif = makeJPEG(tags()).slice(2, -6);
 	const xmp = new Uint8Array([255, 225, 0, 5, 88, 77, 80]);

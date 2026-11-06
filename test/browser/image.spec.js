@@ -197,6 +197,67 @@ test("transparent PNG stays transparent; explicit JPEG conversion updates MIME a
 	});
 });
 
+test("image failures expose decode, encode and unsupported-format codes", async ({
+	page,
+}) => {
+	expect(
+		await page.evaluate(async () => {
+			const input = document.querySelector("#files");
+			const valid = await window.makeImage();
+			const codes = [];
+			const toBlob = HTMLCanvasElement.prototype.toBlob;
+			for (const mode of [
+				"decode",
+				"unsupported",
+				"empty",
+				"throw",
+				"format",
+			]) {
+				const cause = new DOMException("Canvas failure", "SecurityError");
+				HTMLCanvasElement.prototype.toBlob =
+					mode === "empty"
+						? (callback) => callback(null)
+						: mode === "throw"
+							? () => {
+									throw cause;
+								}
+							: mode === "format"
+								? (callback) =>
+										callback(new Blob(["wrong"], { type: "image/png" }))
+								: toBlob;
+				const sf = new window.api.Superfile(input, {
+					process: window.api.createImageProcessor({
+						reencode: true,
+						format: "image/jpeg",
+					}),
+				});
+				const file =
+					mode === "decode"
+						? new File(["broken"], "broken.png", { type: "image/png" })
+						: mode === "unsupported"
+							? new File(["GIF89a"], "animated.gif", { type: "image/gif" })
+							: valid;
+				try {
+					await sf.addFiles([file]);
+				} catch (error) {
+					codes.push({
+						code: error.code,
+						cause: mode !== "throw" || error.cause === cause,
+					});
+				}
+				sf.dispose();
+			}
+			return codes;
+		}),
+	).toEqual([
+		{ code: "DECODE", cause: true },
+		{ code: "UNSUPPORTED_FORMAT", cause: true },
+		{ code: "ENCODE", cause: true },
+		{ code: "ENCODE", cause: true },
+		{ code: "UNSUPPORTED_FORMAT", cause: true },
+	]);
+});
+
 test("quality 0.85 is passed without truncation and a larger optimization keeps original", async ({
 	page,
 }) => {

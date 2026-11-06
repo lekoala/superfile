@@ -1,3 +1,4 @@
+import { configurationError } from "./errors.js";
 /**
  * Optional, transport-independent previews. No styles or markup required by core.
  * @param {import("../superfile.js").default} sf
@@ -5,13 +6,23 @@
  */
 export function connectPreviews(
 	sf,
-	{ container, template, image, status } = {},
+	{
+		container,
+		template,
+		image,
+		status,
+		labels = {},
+		formatSize = (bytes) => `${bytes} bytes`,
+		formatError = (error) => error.message,
+	} = {},
 ) {
-	if (!container) throw new TypeError("connectPreviews requires a container");
+	if (!container)
+		throw configurationError("connectPreviews requires a container");
 	const doc = container.ownerDocument;
 	if (template && template.tagName !== "TEMPLATE")
-		throw new TypeError("template must be an HTMLTemplateElement");
+		throw configurationError("template must be an HTMLTemplateElement");
 	const urls = new Set();
+	const thumbnails = new Map();
 	let disposed = false;
 	const live = status || doc.createElement("span");
 	if (!status) {
@@ -20,6 +31,12 @@ export function connectPreviews(
 		container.before(live);
 	}
 	const release = () => {
+		for (const [element, cleanup] of thumbnails) {
+			cleanup();
+			element.removeAttribute("src");
+			element.hidden = true;
+		}
+		thumbnails.clear();
 		for (const url of urls) doc.defaultView.URL.revokeObjectURL(url);
 		urls.clear();
 		if (image) {
@@ -35,6 +52,16 @@ export function connectPreviews(
 		}
 		const url = doc.defaultView.URL.createObjectURL(file);
 		urls.add(url);
+		const cleanup = () => element.removeEventListener("error", onError);
+		const onError = () => {
+			cleanup();
+			thumbnails.delete(element);
+			element.hidden = true;
+			element.removeAttribute("src");
+			if (urls.delete(url)) doc.defaultView.URL.revokeObjectURL(url);
+		};
+		thumbnails.set(element, cleanup);
+		element.addEventListener("error", onError);
 		element.src = url;
 		element.alt = file.name;
 		element.hidden = false;
@@ -56,9 +83,10 @@ export function connectPreviews(
 		container.setAttribute("aria-busy", String(sf.state === "processing"));
 		live.textContent =
 			sf.state === "processing"
-				? "Preparing files…"
+				? (labels.preparing ?? "Preparing files…")
 				: sf.state === "error"
-					? "File preparation failed. Select files again or clear the field."
+					? (labels.error ??
+						"File preparation failed. Select files again or clear the field.")
 					: "";
 		const entries = sf.entries;
 		if (image && entries[0]) thumbnail(image, entries[0].file);
@@ -78,18 +106,27 @@ export function connectPreviews(
 			text(
 				"[data-superfile-size]",
 				entry.transformed
-					? `${entry.original.size} → ${entry.file.size} bytes`
-					: `${entry.file.size} bytes`,
+					? `${formatSize(entry.original.size)} → ${formatSize(entry.file.size)}`
+					: formatSize(entry.file.size),
 			);
 			text("[data-superfile-type]", entry.file.type);
-			text("[data-superfile-error]", entry.error?.message || "");
+			text(
+				"[data-superfile-error]",
+				entry.error ? formatError(entry.error, entry) : "",
+			);
 			for (const element of row.querySelectorAll("[data-superfile-thumbnail]"))
 				thumbnail(element, entry.file);
 			for (const button of /** @type {NodeListOf<HTMLButtonElement>} */ (
 				row.querySelectorAll("[data-superfile-remove]")
 			)) {
 				button.setAttribute("type", "button");
-				button.setAttribute("aria-label", `Remove ${entry.file.name}`);
+				if (labels.remove !== undefined) button.textContent = labels.remove;
+				button.setAttribute(
+					"aria-label",
+					labels.removeLabel
+						? labels.removeLabel(entry.file)
+						: `Remove ${entry.file.name}`,
+				);
 				button.disabled =
 					sf.input.hasAttribute("webkitdirectory") || sf.state === "error";
 			}

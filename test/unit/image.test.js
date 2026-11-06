@@ -18,7 +18,10 @@ test("quality and ratio parse completely, invalid config is rejected", () => {
 		{ format: "image/gif" },
 		{ reencode: "true" },
 	])
-		assert.throws(() => parseImageOptions(options));
+		assert.throws(() => parseImageOptions(options), {
+			name: "TypeError",
+			code: "CONFIGURATION",
+		});
 });
 
 test("crop source rectangle and bounded output are independent", () => {
