@@ -3,7 +3,10 @@
     "target": "esnext",
     "module": "esnext",
     "moduleResolution": "bundler",
-    "lib": ["es2020", "dom"],
+    "lib": [
+      "es2020",
+      "dom"
+    ],
     "allowJs": true,
     "checkJs": true,
     "noEmit": true,
@@ -13,6 +16,15 @@
     "esModuleInterop": true,
     "skipLibCheck": true
   },
-  "include": ["*.js"],
-  "exclude": ["node_modules", "**/node_modules", "*.css"]
+  "include": [
+    "superfile.js",
+    "image.js",
+    "previews.js",
+    "src/**/*.js"
+  ],
+  "exclude": [
+    "node_modules",
+    "superfile.min.js",
+    "test"
+  ]
 }

@@ -1,219 +1,170 @@
-<!DOCTYPE html>
-<html lang="en" class="no-js">
-
+<!doctype html>
+<html lang="en">
 <head>
-  <title>Superfile demo</title>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5/dist/css/bootstrap.min.css" rel="stylesheet" />
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5/dist/js/bootstrap.bundle.min.js" type="module"></script>
-  <script type="module">
-    import Superfile from "./superfile.js";
-    Superfile.init();
-  </script>
-  <style type="text/css">
-    img:not([src]) {
-      display: none;
-    }
-
-    .superfile:not(.superfile-ready) {
-      visibility: hidden;
-    }
-
-    .superfile-drag input {
-      background: palegoldenrod;
-    }
-
-    .avatar {
-      width: 100px;
-      height: 100px;
-      background: #ccc;
-      border-radius: 100px;
-      position: relative;
-    }
-
-    .avatar.superfile-drag {
-      background-color: palegoldenrod;
-    }
-
-    .avatar button {
-      width: 24px;
-      height: 24px;
-      display: inline-flex;
-      align-items: center;
-      text-align: center;
-      border: 0;
-      background: #ddd;
-      border: 1px solid #ddd;
-      font-size: 8px;
-      border-radius: 24px;
-    }
-
-    .avatar button:hover {
-      border: 1px solid #aaa;
-    }
-
-    .avatar .superfile-clear {
-      position: absolute;
-      top: 0px;
-      right: 0px;
-      z-index: 2;
-    }
-
-    .avatar .superfile-webcam {
-      position: absolute;
-      top: 0px;
-      left: 0px;
-      z-index: 2;
-    }
-
-    .avatar input {
-      display: none;
-    }
-
-    .avatar label {
-      z-index: 1;
-    }
-
-    .avatar.superfile-preview-active label {
-      text-indent: -9999px;
-    }
-
-    .avatar .superfile-preview {
-      z-index: 0;
-      border-radius: 500px;
-    }
-
-    .avatar.superfile-drag .superfile-preview {
-      display: none;
-    }
-
-    video.superfile-preview {
-      object-fit: cover;
-    }
-
-    .avatar label,
-    .avatar .superfile-preview {
-      position: absolute;
-      top: 0;
-      left: 0;
-      height: 100%;
-      width: 100%;
-    }
-
-    .avatar label {
-      display: inline-flex;
-      align-items: center;
-      text-align: center;
-      max-width: 75%;
-      left: 12.5%;
-    }
-
-    .gallery-preview {
-      margin: 20px auto;
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-      grid-gap: 20px;
-      align-items: center;
-    }
-
-    .gallery-preview .superfile-preview {
-      border: 1px solid #ccc;
-      box-shadow: 2px 2px 6px 0px rgba(0, 0, 0, 0.3);
-      max-width: 100%;
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>Superfile 2 — A better native file input</title>
+  <style>
+    :root { font-family: system-ui, sans-serif; color: #202a27; background: #f5f7f4; accent-color: #27694d; line-height: 1.5; }
+    * { box-sizing: border-box; }
+    body { margin: 0; }
+    main { max-width: 1080px; padding: 48px 24px 64px; margin: auto; }
+    header { max-width: 720px; margin-bottom: 36px; }
+    .eyebrow { color: #27694d; letter-spacing: .12em; font-size: .75rem; font-weight: 750; text-transform: uppercase; }
+    h1 { font-size: clamp(2.1rem, 6vw, 3.7rem); line-height: 1.08; letter-spacing: -.05em; margin: 12px 0 20px; }
+    h2 { font-size: 1.25rem; margin: 0; letter-spacing: -.02em; }
+    p { color: #54625a; }
+    a { color: #27694d; text-underline-offset: .2em; }
+    .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
+    .card { background: #fff; padding: 26px; border: 1px solid #dce3dc; border-radius: 16px; min-width: 0; }
+    .card > p { min-height: 3em; margin-top: 10px; }
+    .card-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+    .tag { font-size: .7rem; font-weight: 650; border-radius: 20px; padding: 4px 9px; white-space: nowrap; background: #eaf2ec; color: #27694d; }
+    label { display: block; font-size: .85rem; font-weight: 650; margin-bottom: 8px; }
+    input[type=file] { width: 100%; font: inherit; font-size: .85rem; border: 1px dashed #a9bbb0; padding: 12px; border-radius: 9px; background: #fafcf9; }
+    input::file-selector-button { font: inherit; padding: 6px 10px; border: 1px solid #becdc3; border-radius: 5px; background: #fff; color: #202a27; margin-right: 10px; cursor: pointer; }
+    button { font: inherit; font-size: .85rem; font-weight: 650; padding: 9px 14px; border: 1px solid #becdc3; border-radius: 7px; background: #fff; color: #253f30; cursor: pointer; }
+    button[type=submit] { background: #27694d; border-color: #27694d; color: white; }
+    button:disabled { opacity: .5; cursor: default; }
+    :focus-visible { outline: 3px solid #b07115; outline-offset: 3px; }
+    .actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 20px; }
+    .superfile-drag { outline: 3px solid #27694d; outline-offset: 6px; border-radius: 4px; }
+    .list { margin-top: 12px; }
+    [data-superfile-id] { display: flex; align-items: center; gap: 10px; border-bottom: 1px solid #e4eae5; padding: 10px 0; font-size: .8rem; }
+    [data-superfile-name] { overflow-wrap: anywhere; flex: 1; }
+    [data-superfile-size] { color: #54625a; font-size: .7rem; }
+    [data-superfile-error] { color: #a02a20; }
+    [data-superfile-thumbnail] { object-fit: cover; border-radius: 6px; width: 44px; height: 44px; }
+    [data-superfile-remove] { padding: 5px 8px; font-size: .72rem; }
+    [role=status] { display: block; color: #8d3e1c; font-size: .8rem; margin-top: 8px; }
+    .avatar { width: 88px; height: 88px; border-radius: 50%; object-fit: cover; margin: 12px 0; }
+    .receiver { margin-top: 28px; }
+    iframe { width: 100%; min-height: 145px; border: 1px solid #dce3dc; background: #fff; border-radius: 12px; }
+    #response { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 220px; overflow: auto; font-size: .75rem; }
+    footer { font-size: .8rem; margin-top: 28px; }
+    [hidden] { display: none !important; }
+    @media (max-width: 760px) { .grid { grid-template-columns: 1fr; } main { padding-top: 28px; } .card { padding: 20px; } }
+    @media (prefers-color-scheme: dark) {
+      :root { color: #e4ece6; background: #141c18; }
+      .card, iframe { background: #1b2720; border-color: #354a3c; }
+      p, [data-superfile-size] { color: #adbdaf; }
+      input[type=file] { background: #19241e; color: #e4ece6; }
+      button, input::file-selector-button { background: #263b2e; color: #e4ece6; border-color: #4b6654; }
+      a, .eyebrow { color: #8bcaa5; }
+      [data-superfile-id] { border-color: #354a3c; }
+      [role=status], [data-superfile-error] { color: #ffb29e; }
     }
   </style>
 </head>
-
 <body>
-  <div class="container p-3">
-    <h1>Demo</h1>
-    <form class="needs-validation" novalidate method="post" enctype="multipart/form-data" action="https://vercel-dumper.vercel.app/">
-      <div class="mb-3 superfile">
-        <label for="formFile" class="form-label">Default file input example</label>
-        <div class="input-group">
-          <input class="form-control" type="file" id="formFile" accept="image/*" name="file" />
-          <button class="btn btn-outline-secondary superfile-clear" type="button">Clear</button>
+<main>
+  <header>
+    <span class="eyebrow">Superfile / Version 2</span>
+    <h1>A better native file input.</h1>
+    <p>Prepare files on your device. Keep your HTML form. Add resizing, previews or a square crop only where you need them.</p>
+    <a href="https://github.com/lekoala/superfile">Source &amp; documentation</a>
+  </header>
+  <div class="grid">
+    <section class="card">
+      <div class="card-heading"><h2>Documents, unchanged</h2><span class="tag">Core only</span></div>
+      <p>Choose or drop files. Preview their names, remove a file, then send the original documents.</p>
+      <form id="documents-form" action="/receive" method="post" enctype="multipart/form-data" target="receipt">
+        <div class="superfile">
+          <label for="documents">Documents</label>
+          <input id="documents" name="documents" type="file" multiple data-superfile aria-describedby="documents-help">
+          <small id="documents-help">A new selection or drop replaces the previous selection.</small>
+          <div id="documents-list" class="list"></div>
+          <div class="actions"><button type="submit">Send documents</button><button type="button" data-superfile-clear>Clear</button></div>
         </div>
-        <img class="img-fluid superfile-preview" />
-      </div>
-      <div class="mb-3 superfile">
-        <label for="formFile2" class="form-label">Default file input example (no resize)</label>
-        <div class="input-group">
-          <input class="form-control" type="file" id="formFile2" name="file2" data-disable-resize="1" />
-          <button class="btn btn-outline-secondary superfile-clear" type="button">Clear</button>
+      </form>
+    </section>
+    <section class="card">
+      <div class="card-heading"><h2>Photos &amp; attachments</h2><span class="tag">Resize</span></div>
+      <p>Photos fit within 1920 pixels. PDFs pass through unchanged. Submit sends the prepared files through a native form.</p>
+      <form id="photos-form" action="/receive" method="post" enctype="multipart/form-data" target="receipt">
+        <div class="superfile">
+          <label for="photos">Photos or PDFs</label>
+          <input id="photos" name="photos" type="file" multiple data-superfile accept="image/jpeg,image/png,image/webp,application/pdf" data-max-width="1920" data-max-height="1920" data-quality="0.85">
+          <div id="photos-list" class="list"></div>
+          <div class="actions"><button type="submit">Send prepared files</button><button type="button" data-superfile-clear>Clear</button></div>
         </div>
-        <img class="img-fluid superfile-preview" />
-      </div>
-      <div class="mb-3 superfile">
-        <label for="formFile3" class="form-label">Default file input example (custom size, keep original ratio)</label>
-        <div class="input-group">
-          <input class="form-control" type="file" id="formFile3" name="file3" accept="image/*" data-max-width="100" data-max-height="100" />
-          <button class="btn btn-outline-secondary superfile-clear" type="button">Clear</button>
+      </form>
+    </section>
+    <section class="card">
+      <div class="card-heading"><h2>A simple avatar</h2><span class="tag">Center crop</span></div>
+      <p>A centered square, up to 256 pixels. No crop editor or upload service needed.</p>
+      <form id="avatar-form" action="/receive" method="post" enctype="multipart/form-data" target="receipt">
+        <div class="superfile">
+          <label for="avatar">Profile photo</label>
+          <input id="avatar" name="avatar" type="file" accept="image/jpeg,image/png,image/webp" data-superfile data-ratio="1:1" data-max-width="256" data-max-height="256">
+          <img id="avatar-preview" class="avatar" alt="Selected profile photo" hidden>
+          <div id="avatar-list" class="list"></div>
+          <div class="actions"><button type="submit">Save photo</button><button type="button" data-superfile-clear>Clear</button><button type="reset">Reset</button></div>
         </div>
-        <img class="img-fluid superfile-preview" />
-      </div>
-      <div class="mb-3 superfile">
-        <label for="formFileRatio" class="form-label">Default file input example (custom size and ratio)</label>
-        <div class="input-group">
-          <input class="form-control" type="file" id="formFileRatio" name="formFileRatio" accept="image/*" data-ratio="2:1" data-max-width="200" data-max-height="200" />
-          <button class="btn btn-outline-secondary superfile-clear" type="button">Clear</button>
+      </form>
+    </section>
+    <section class="card">
+      <div class="card-heading"><h2>Your own transport</h2><span class="tag">Optional</span></div>
+      <p>The page waits for readiness, then sends its own request. Superfile prepares the files; your application handles the response.</p>
+      <form id="manual-form" action="/receive" method="post" enctype="multipart/form-data" target="receipt">
+        <div class="superfile">
+          <label for="manual">Photos</label>
+          <input id="manual" name="photos" type="file" multiple data-superfile accept="image/jpeg,image/png,image/webp" data-max-width="1200" data-quality="0.85">
+          <div id="manual-list" class="list"></div>
+          <div class="actions"><button type="submit">Send request</button><button type="button" data-superfile-clear>Clear</button></div>
         </div>
-        <img class="img-fluid superfile-preview" />
-      </div>
-
-      <div class="mb-3">
-        <p>Upload an avatar (cropped to square, retina size). Try dragging a file or click on the webcam icon!</p>
-        <div class="superfile avatar">
-          <label for="formFile4" class="form-label">Avatar upload</label>
-          <button class="superfile-webcam" type="button" title="Take a picture with your webcam">📷</button>
-          <button class="superfile-clear" type="button">✖️</button>
-          <div class="input-group">
-            <!-- double width/height for retina display -->
-            <input class="form-control" type="file" id="formFile4" name="file4" accept="image/*" data-max-width="200" data-max-height="200"
-              data-hide-clear="1" data-ratio="1:1" />
-          </div>
-          <img class="img-fluid superfile-preview" />
-        </div>
-      </div>
-
-      <div class="mb-3">
-        <p>Upload an avatar (preset value)</p>
-        <div class="superfile avatar">
-          <label for="formFile5" class="form-label">Avatar upload</label>
-          <button class="superfile-clear" type="button">✖️</button>
-          <div class="input-group">
-            <!-- double width/height for retina display -->
-            <input class="form-control" type="file" id="formFile5" name="file5" accept="image/*" data-max-width="200" data-max-height="200"
-              data-hide-clear="1" data-ratio="1:1" />
-          </div>
-          <img src="https://randomuser.me/api/portraits/men/36.jpg" class="img-fluid superfile-preview" />
-        </div>
-      </div>
-
-      <div class="mb-3 superfile">
-        <label for="formFileMultiple" class="form-label">Multiple file input example (checkout the nice gallery layout!)</label>
-        <div class="input-group">
-          <input class="form-control" type="file" multiple id="formFileMultiple" accept="image/*" name="formFileMultiple[]" />
-          <button class="btn btn-outline-secondary superfile-clear" type="button">Clear</button>
-        </div>
-        <div class="gallery-preview">
-          <!-- this will be cloned as many time as needed -->
-          <img class="img-fluid superfile-preview" />
-        </div>
-      </div>
-
-      <div class="mb-3 superfile">
-        <label for="formFileDirectory" class="form-label">Directory file input example</label>
-        <div class="input-group">
-          <input class="form-control" type="file" multiple directory webkitdirectory id="formFileDirectory" accept="image/*"
-            name="formFileDirectory[]" />
-          <button class="btn btn-outline-secondary superfile-clear" type="button">Clear</button>
-        </div>
-        <img class="img-fluid superfile-preview" />
-      </div>
-
-      <button class="btn btn-primary" type="submit">Submit form</button>
-    </form>
+      </form>
+      <div id="response" role="status" aria-live="polite"></div>
+    </section>
   </div>
-</body>
+  <section class="receiver" aria-labelledby="receipt-title">
+    <h2 id="receipt-title">Native form response</h2>
+    <p>The local demo receiver shows the submitted filenames and bytes below.</p>
+    <iframe name="receipt" title="Native submission response" srcdoc="<!doctype html><html lang='en'><title>Response</title><body style='font:14px system-ui;color:#54625a'>Submit a form to inspect the result.</body></html>"></iframe>
+  </section>
+  <footer><p>No JavaScript? All four forms still submit original files. Always validate files on your server.</p></footer>
+</main>
+<template id="file-row">
+  <span data-superfile-name></span><span data-superfile-size></span><span data-superfile-error></span><button type="button" data-superfile-remove>Remove</button>
+</template>
+<script type="module">
+  import Superfile from './superfile.js';
+  import { createImageProcessor } from './image.js';
+  import { connectPreviews } from './previews.js';
 
+  const documents = new Superfile(document.querySelector('#documents'));
+  connectPreviews(documents, { container: document.querySelector('#documents-list'), template: document.querySelector('#file-row') });
+  for (const name of ['photos', 'avatar', 'manual']) {
+    const sf = new Superfile(document.querySelector(`#${name}`), { process: createImageProcessor() });
+    connectPreviews(sf, {
+      container: document.querySelector(`#${name}-list`),
+      ...(name === 'avatar' ? { image: document.querySelector('#avatar-preview'), template: document.querySelector('#file-row') } : {}),
+    });
+  }
+
+  // This HTTP transport is demo application code, never part of Superfile.
+  const form = document.querySelector('#manual-form');
+  const response = document.querySelector('#response');
+  let sending = false;
+  form.addEventListener('submit', async (event) => {
+    if (event.defaultPrevented) return;
+    event.preventDefault();
+    if (sending) return;
+    sending = true;
+    response.textContent = 'Sending…';
+    try {
+      const sf = Superfile.get(document.querySelector('#manual'));
+      await sf.whenReady();
+      const result = await fetch(form.action, { method: form.method, body: new FormData(form, event.submitter) });
+      const html = new DOMParser().parseFromString(await result.text(), 'text/html');
+      response.textContent = html.querySelector('#result')?.textContent || `Response: ${result.status}`;
+    } catch (error) {
+      response.textContent = error.message;
+    } finally {
+      sending = false;
+    }
+  });
+</script>
+</body>
 </html>

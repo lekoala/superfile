@@ -1,124 +1,82 @@
-# superfile
+# Superfile 2
 
-[![NPM](https://nodei.co/npm/superfile.png?mini=true)](https://nodei.co/npm/superfile/)
-[![Downloads](https://img.shields.io/npm/dt/superfile.svg)](https://www.npmjs.com/package/superfile)
+**A better native file input.**
 
-An ES6 class to improve file uploads. Works great with Bootstrap but works with any input.
-
-- Resize images on client side to avoid large uploads
-- Preview images before upload
-- Clear uploads with a button
-- Crop to aspect ratio from center
-- Drag & drop file support
-- Multiple/directory upload support
-- Take pictures from the webcam
-- **Zero dependencies** - ~450 lines of pure ES6
-
-## Quick Start
-
-```bash
-npm install superfile
-```
+Prepare files locally, then submit an ordinary HTML form. Superfile handles selection, drag and drop, removal, optional image processing and optional previews. It has no runtime dependencies, required CSS, HTTP transport or framework integration.
 
 ```html
-<div class="superfile">
-  <input type="file" accept="image/*" data-max-width="1920" />
-  <img class="superfile-preview" />
-  <button class="superfile-clear">Clear</button>
-</div>
+<form method="post" action="/photos" enctype="multipart/form-data">
+  <div class="superfile">
+    <label for="photo">Photo</label>
+    <input id="photo" name="photo" type="file"
+      accept="image/jpeg,image/png,image/webp"
+      data-superfile data-max-width="1920" data-quality="0.85">
+    <button type="button" data-superfile-clear>Clear</button>
+    <div id="previews"></div>
+  </div>
+  <button type="submit">Save</button>
+</form>
 ```
-
-```javascript
-import Superfile from "superfile";
-Superfile.init();
-```
-
-## Documentation
-
-Full documentation is available in the [docs](./docs) folder:
-
-- [Getting Started](./docs/README.md) - Overview and quick start
-- [Configuration](./docs/CONFIGURATION.md) - All data attributes and options
-- [API Reference](./docs/API.md) - JavaScript methods and properties
-- [EXIF Addon](./docs/EXIF.md) - Preserve metadata during resize
-- [Extending](./docs/EXTENDING.md) - Create your own addons
-
-## How to use
 
 ```js
-import Superfile from "./superfile.js";
-Superfile.init();
+import Superfile from 'superfile';
+import { createImageProcessor } from 'superfile/image';
+import { connectPreviews } from 'superfile/previews';
+
+const sf = new Superfile(document.querySelector('#photo'), {
+  process: createImageProcessor(),
+});
+connectPreviews(sf, { container: document.querySelector('#previews') });
 ```
 
-Create a file input. It needs to be wrapped by a div with the `superfile` class.
+Without JavaScript the input remains visible and submits originals. With Superfile, a native submission waits for preparation and keeps the original submit button and native validation. Your endpoint stays the same. Always enforce mandatory constraints on the server too.
 
-You can add a clear button and a preview image if you want.
+For ordinary documents, import only the core:
 
-```html
-<div class="mb-3 superfile">
-  <label for="formFile" class="form-label">Default file input example</label>
-  <div class="input-group">
-    <input class="form-control" type="file" id="formFile" name="file" />
-    <button class="btn btn-outline-secondary superfile-clear" type="button">Clear</button>
-  </div>
-  <img class="img-fluid superfile-preview" />
-</div>
+```js
+import Superfile from 'superfile';
+const instances = Superfile.init(); // Only input[type=file][data-superfile]
 ```
 
-## Available options
+Image processing is explicit. Without image options, files stay unchanged. Previews are optional. No CSS class or preview element is required by the core. For direct browser imports, use relative URLs to `superfile.js`, `image.js` and `previews.js`; `superfile.min.js` is the standalone core bundle.
 
-These are set through `data` attributes:
+Install with `bun add superfile` (or `npm install superfile`).
 
-- disable-resize: don't try to resize the images and keep original files
-- max-width: the maximum width of the image (keep ratio)
-- max-height: the maximum height of the image (keep ratio)
-- hide-clear: hide clear element (if any) until preview is showed
-- ratio: set a ratio (eg: 1:1 for a square ratio) for the image. Image is cropped from the center. It can
-  be used with max-width/max-height or independantly.
-- quality: image quality (defaults to 1 = 100%).
+## Public API
 
-## Limiting accepted file types
+- `addFiles(files)`: append with `multiple`, replace without it; returns a readiness promise.
+- `removeFile(id)`: remove exactly one entry; returns a readiness promise.
+- `clear()`: clear files, errors and queued native submission.
+- `whenReady()`: wait for the latest generation, including replacement selections.
+- `dispose()`: detach listeners and release resources; pending waits reject with `AbortError`.
+- Read `input`, `files`, `entries`, `state`, `generation`; use `Superfile.get(input)` to retrieve an instance.
 
-You can use the regular [`accept` attribute](https://developer.mozilla.org/en-US/docs/Web/HTML/Attributes/accept).
+Native selection and drop replace the selection. File identities are independent of names. A failed batch restores the last valid FileList and blocks native submission until a new batch succeeds or the field is cleared. Reset cancels preparation and pending submission.
 
-```html
-<input type="file" accept=".gif,.jpg,.jpeg,.png,.doc,.docx" /> <input type="file" accept="image/*" />
+For any manual transport, wait **before** constructing FormData:
+
+```js
+await sf.whenReady();
+const body = new FormData(sf.input.form);
+// Your application owns sending body and handling the response.
 ```
 
-## Recommended css
+Superfile emits bubbling `superfile:processing`, `superfile:ready`, `superfile:error`, `superfile:cleared` and `superfile:disposed` events on the input. Native `change` describes the raw selection; no second artificial `change` is emitted after processing.
 
-- Hide preview element when no src is set
-- Hide inputs until ready (avoids fouc)
-- Change input background color when dropping files
+## Documentation and development
 
-```css
-img:not([src]) {
-  display: none;
-}
-.superfile:not(.superfile-ready) {
-  visibility: hidden;
-}
-.superfile-drag input {
-  background: palegoldenrod;
-}
+[API](docs/API.md) · [Configuration](docs/CONFIGURATION.md) · [Migration from V1](docs/MIGRATION.md) · [Image metadata](docs/EXIF.md) · [Custom processors and transports](docs/EXTENDING.md) · [Contract and verification](docs/CONTRACT.md)
+
+```sh
+bun install
+bun run start                  # Open http://127.0.0.1:4178/
+bun test                       # Unit tests
+bunx --bun playwright install  # Install browser engines once
+bun run test:browser            # Playwright runner under Bun
+bun run lint
+bun run build
 ```
 
-When set, the preview will get a `src` attribute like `blob:http://someaddress/30fde1c6-911e-4b50-a823-e778d100ffb3`
-and be displayed
+Browser contracts run in Chromium, Firefox and WebKit, including real multipart submissions to a local receiver. Real-device iOS/Android and wide-gamut/large-camera-image testing remain release checks. See [testing details](docs/TESTING.md).
 
-## Demo
-
-https://codepen.io/lekoalabe/pen/wvdVoNa
-
-## Custom element
-
-https://formidable-elements.vercel.app/demo/superfile-input.html
-
-## I need more
-
-This is a simple improvement over regular file input.
-
-If you need more, look at :
-
-- https://pqina.nl/filepond/
-- https://www.dropzonejs.com/
+Camera capture UI, interactive crop and EXIF preservation addons are deferred. Native `capture` remains available. Directory inputs are native passthrough only, preserving relative paths without image processing or individual removal.

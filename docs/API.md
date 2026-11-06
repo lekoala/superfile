@@ -1,315 +1,98 @@
-# API Reference
+# API
 
-Complete JavaScript API for Superfile.
+## Initialization
 
-## Constructor
+```js
+import Superfile from 'superfile';
+import { createImageProcessor } from 'superfile/image';
 
-### `new Superfile(inputElement)`
-
-Create a new Superfile instance for a file input.
-
-```javascript
-import Superfile from "./superfile.js";
-
-const input = document.querySelector("input[type=file]");
-const sf = new Superfile(input);
+const sf = new Superfile(input, {
+  process: createImageProcessor({ maxWidth: 1920, quality: 0.85 }),
+  maxSize: 20 * 1024 * 1024, // Optional limit on original bytes
+  validate(file, { signal }) {
+    // Optional synchronous/async validation; throw to reject this batch.
+  },
+});
 ```
 
-**Parameters:**
-- `inputElement` - `HTMLInputElement` - The file input to enhance
+A bare `input[type=file]` is sufficient. There is no required wrapper. An optional nearest `.superfile` or `[data-superfile-drop]` wrapper becomes the drop target and scopes `[data-superfile-clear]` controls. Use one file input per drop wrapper. `dropTarget` can explicitly supply an HTML element instead.
 
-**Throws:**
-- Error if input is not a valid file input
+Initialization validates configuration before installing listeners. Image attributes without a processor throw. That leaves an ordinary native input, **without** any transformation or submission guarantee. Treat configuration exceptions as application errors; do not deliberately suppress them to enforce a client constraint.
 
-## Static Methods
+`Superfile.init(selector?, options?)` returns instances for matching inputs, reusing existing ones. Its default selector is `input[type=file][data-superfile]`. It does not automatically run on import. `Superfile.get(input)` returns the registered instance or `undefined`. Constructing a second instance explicitly throws.
 
-### `Superfile.init(selector?)`
+## Properties
 
-Initialize all matching file inputs automatically.
+| Property | Meaning |
+| --- | --- |
+| `input` | Original HTMLInputElement |
+| `files` | Current native FileList, identical to `input.files` |
+| `entries` | Array of frozen entry snapshots |
+| `state` | `ready`, `processing` or `error` |
+| `generation` | Current generation number |
 
-```javascript
-// Initialize all file inputs
-Superfile.init();
+An entry contains:
 
-// Initialize specific inputs
-Superfile.init("input[type=file].my-class");
-Superfile.init("#specific-input");
-```
-
-**Parameters:**
-- `selector` - `string` (optional) - CSS selector, defaults to `"input[type=file]"`
-
-## Instance Properties
-
-### Core Elements
-
-| Property | Type | Description |
-|----------|------|-------------|
-| `inputElement` | `HTMLInputElement` | The original file input |
-| `holderElement` | `HTMLElement` | Parent container with `.superfile` class |
-| `previewElement` | `HTMLImageElement\|null` | The preview image element |
-| `clearElement` | `HTMLButtonElement\|null` | The clear button element |
-| `webcamElement` | `HTMLButtonElement\|null` | The webcam button element |
-
-### Configuration (read-only after init)
-
-| Property | Type | Description |
-|----------|------|-------------|
-| `disableResize` | `boolean` | Whether resizing is disabled |
-| `maxWidth` | `number` | Maximum width constraint |
-| `maxHeight` | `number` | Maximum height constraint |
-| `hideClear` | `boolean` | Whether clear button is hidden initially |
-| `imageRatio` | `string[]\|null` | Parsed ratio array `["16", "9"]` |
-| `quality` | `number` | JPEG quality 0.0-1.0 |
-
-## Instance Methods
-
-### `showPreview()`
-
-Manually trigger preview display. Called automatically on file selection.
-
-```javascript
-sf.showPreview();
-```
-
-### `clearPreview()`
-
-Clear the file input and hide preview.
-
-```javascript
-sf.clearPreview();
-```
-
-Also:
-- Removes `superfile-preview-active` class
-- Revokes blob URLs (prevents memory leaks)
-- Removes cloned preview elements (multiple files)
-- Resets input value
-
-### `takePicture()`
-
-Trigger webcam capture flow. Called automatically when webcam button is clicked.
-
-```javascript
-// Usually triggered by click on .superfile-webcam button
-sf.takePicture();
-```
-
-Opens camera stream, captures frame, crops to ratio, and sets as file value.
-
-### `dispose()`
-
-Clean up event listeners and revoke blob URLs.
-
-```javascript
-sf.dispose();
-```
-
-**Important:** Call when removing the element from DOM to prevent memory leaks.
-
-Removes:
-- Change listener from input
-- Click listeners from clear/webcam buttons
-- Drag/drop listeners from holder
-- Revokes all blob URLs
-
-### `handleEvent(event)`
-
-Internal event dispatcher. Implements the `EventListener` interface.
-
-```javascript
-// Automatically called by browser event system
-sf.handleEvent({ type: "change" });
-sf.handleEvent({ type: "click", target: buttonElement });
-```
-
-Routes to `$change()`, `$click()`, `$drop()`, `$dragover()`, `$dragleave()` methods.
-
-## Protected Methods (Advanced)
-
-These methods can be overridden when extending Superfile.
-
-### `handleResizeImage(file, callback)`
-
-Process a single file through the resize pipeline.
-
-```javascript
-// Override in subclass
-handleResizeImage(file, callback) {
-  // Custom processing
-  super.handleResizeImage(file, callback);
+```js
+{
+  id,                 // Opaque identity, stable while the entry remains selected
+  original,           // Original File
+  file,               // Current/prepared File
+  status,             // pending | processing | ready | error
+  transformed,        // file !== original
+  error,              // Error or null
+  decision,           // Processor decision, or null before processing
 }
 ```
 
-**Parameters:**
-- `file` - `File` - The image file to process
-- `callback` - `Function` - Called when processing complete
+Names need not be unique. An entry marked ready during a batch is not necessarily committed yet: only instance `state === 'ready'` and `whenReady()` guarantee the final FileList. After an error, entries describe the failed attempt; `input.files` has been restored to the last valid batch.
 
-### `resizeImage(file, img, callback)`
+## Methods
 
-Perform the actual canvas-based resize.
+`addFiles(iterable)` appends with `multiple`. Without `multiple` it replaces; a batch with more than one file throws before changing anything. Empty additions do nothing. Previously ready entries retain identity and are not compressed again. After an error, additions start from the last committed entries.
 
-```javascript
-resizeImage(file, img, callback) {
-  const sw = img.naturalWidth;
-  const sh = img.naturalHeight;
-  
-  // Custom resize logic
-  // ... canvas operations ...
-  
-  callback();
-}
-```
+`removeFile(id)` removes one entry and invalidates obsolete processing. Unknown IDs do nothing. Individual removal is unavailable after a blocking batch error: select again or clear instead. It is also unavailable for directory inputs.
 
-### `createProcessedFile(file, blob, callback)`
+Both methods return `Promise<Entry[]>`, following the latest generation. They can throw synchronously for invalid arguments or unavailable operations. Handle promise rejection if processing fails.
 
-Create final File object and update the input's FileList.
+`clear()` synchronously empties the input, invalidates work, clears blocking errors and cancels a queued native submission. Existing readiness waits resolve to `[]`. It emits `cleared`, not `ready`.
 
-```javascript
-createProcessedFile(file, blob, callback) {
-  const resizedFile = new File([blob], file.name, {
-    type: file.type,
-    lastModified: Date.now(),
-  });
-  
-  // Update FileList via DataTransfer
-  const container = new DataTransfer();
-  // ... add files ...
-  this.inputElement.files = container.files;
-  
-  callback();
-}
-```
+`whenReady()` resolves with the ready entry snapshots. If another generation starts while it is pending, it follows that generation. A blocking error rejects; a later successful selection permits new calls to resolve. A resolved promise cannot track subsequent selections: construct FormData immediately after awaiting it, without introducing another asynchronous gap.
 
-### `processFiles(callback)`
-
-Process all selected files.
-
-```javascript
-processFiles(callback) {
-  const files = this.inputElement.files;
-  for (const file of files) {
-    this.handleResizeImage(file, callback);
-  }
-}
-```
-
-### `getTargetRatio()`
-
-Calculate target aspect ratio from data-ratio attribute.
-
-```javascript
-const ratio = sf.getTargetRatio();
-// 1 for "1:1"
-// 1.777... for "16:9"
-// 0 for no ratio set
-```
-
-**Returns:** `number` - Width/height ratio or 0 if not set
-
-### `revokePreviewUrls()`
-
-Revoke all blob URLs created for previews.
-
-```javascript
-sf.revokePreviewUrls();
-```
-
-Called automatically by `dispose()` and `clearPreview()`.
+`dispose()` is idempotent. It aborts pending work, rejects outstanding waits with `AbortError`, disconnects form/drop/input listeners and emits `disposed`. Previews connected through the standard helper are also disposed. If processing or an error was active, the last committed files are restored. The input remains usable as a native control. Methods other than repeat disposal cannot be used afterwards.
 
 ## Events
 
-Superfile dispatches standard events you can listen for:
+Events are CustomEvents dispatched on the input and bubble. All include `detail.generation` and `detail.entries` snapshots.
 
-### Change Event
+| Event | Additional detail |
+| --- | --- |
+| `superfile:processing` | Beginning of a generation |
+| `superfile:ready` | `files`: final FileList |
+| `superfile:error` | `id` (null for batch errors), `error`, `blocking: true` |
+| `superfile:cleared` | Empty selection |
+| `superfile:disposed` | Instance destroyed |
 
-Standard input change event fires after processing:
+No synthetic `change` after preparation, no upload progress and no network-success events. Image fallback decisions are exposed on entries, not reported as blocking errors.
 
-```javascript
-input.addEventListener("change", (e) => {
-  // Files have been processed and resized
-  console.log(input.files); // Processed FileList
-});
+## Native form submission
+
+One capture listener per form blocks premature submit events and resumes once with `requestSubmit(originalSubmitter)`. It waits for all enabled Superfile controls, including external inputs with `form="..."`. Multiple clicks during processing retain the **first** submitter. Native validation runs again; submitter action, method, encoding and validation overrides are retained. `method="dialog"` closes the dialog without waiting for file preparation.
+
+Reset, clear, disposal, reassignment of a control to another form, removal of the submitter, or a detached form cancel pending submission. Canceled native resets leave the selection intact. After a native reset, Superfile state is cleared in a microtask, once cancellation has been checked.
+
+The native guard does not intercept `form.submit()` or arbitrary manual `FormData` construction. Native validation can prevent a submit event from being raised at all, e.g. a required field still empty during a programmatic addition. In that case there is no submit intent to replay; submit after readiness. See [external transports](EXTENDING.md).
+
+## Previews
+
+```js
+import { connectPreviews } from 'superfile/previews';
+const view = connectPreviews(sf, { container, template, image, status });
+view.dispose();
 ```
 
-### Custom Event (if needed)
+Only `container` is required. `template` is an optional HTMLTemplateElement cloned into one row per entry. Optional `image` binds a standalone image/avatar to the first entry. Optional `status` receives preparation/error text; otherwise a live status element is inserted before the container. The helper owns container contents and the bound image while connected.
 
-You can extend to dispatch custom events:
+Supported template slots: `data-superfile-name`, `data-superfile-size`, `data-superfile-type`, `data-superfile-error`, `data-superfile-thumbnail` on an image, and `data-superfile-remove` on a button. Names are assigned with textContent. The default renderer provides the same slots without a template.
 
-```javascript
-// In subclass
-handleResizeImage(file, callback) {
-  super.handleResizeImage(file, () => {
-    this.inputElement.dispatchEvent(
-      new CustomEvent("superfile:processed", { 
-        detail: { original: file, processed: this.inputElement.files[0] }
-      })
-    );
-    callback();
-  });
-}
-```
-
-## TypeScript Types
-
-For TypeScript projects, types are available via JSDoc:
-
-```typescript
-// Import types from the JSDoc annotations
-import type Superfile from "./superfile.js";
-
-declare global {
-  interface HTMLInputElement {
-    _superfile?: Superfile;
-  }
-}
-```
-
-Or use the provided `jsconfig.json` for VS Code IntelliSense.
-
-## Examples
-
-### Manual Instance Access
-
-```javascript
-// Store reference during creation
-const sf = new Superfile(input);
-input._superfile = sf;
-
-// Access later
-input.addEventListener("change", () => {
-  const sf = input._superfile;
-  console.log(sf.maxWidth, sf.maxHeight);
-});
-```
-
-### Programmatic File Set
-
-```javascript
-// Create a File and set it
-const blob = await fetch(url).then(r => r.blob());
-const file = new File([blob], "image.jpg", { type: "image/jpeg" });
-
-const container = new DataTransfer();
-container.items.add(file);
-input.files = container.files;
-input.dispatchEvent(new Event("change"));
-```
-
-### Custom Preview Logic
-
-```javascript
-class MySuperfile extends Superfile {
-  showPreview() {
-    super.showPreview();
-    
-    // Custom post-preview logic
-    if (this.previewElement) {
-      this.previewElement.style.opacity = "0";
-      requestAnimationFrame(() => {
-        this.previewElement.style.opacity = "1";
-      });
-    }
-  }
-}
-```
+PDF and other non-image files get neutral rows. Individual removal is disabled for failed batches and directory inputs. Object URLs are revoked on every replacement, clear and disposal; keyboard focus moves to an adjacent removal button or the original input.

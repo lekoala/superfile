@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<title>Superfile contract fixture</title>
+<form id="form" method="post" action="/receive" enctype="multipart/form-data">
+  <label for="files">Files</label>
+  <input id="files" name="files" type="file" multiple data-superfile>
+  <label for="title">Title</label><input id="title" name="title">
+  <button id="save" type="submit" name="action" value="save">Save</button>
+  <button id="other" type="submit" name="action" value="other" formaction="/alternate">Other</button>
+  <button id="reset-button" type="reset">Reset</button>
+</form>
+<input id="external" name="external" type="file" form="form">
+<div id="previews"></div>
+<img id="avatar" alt="Selected image">
+<script type="module">
+  import Superfile from '/superfile.js';
+  import { createImageProcessor } from '/image.js';
+  import { connectPreviews } from '/previews.js';
+  window.api = { Superfile, createImageProcessor, connectPreviews };
+</script>
+</html>

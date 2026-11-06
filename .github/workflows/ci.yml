@@ -9,23 +9,29 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v4
-
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
+      - uses: oven-sh/setup-bun@v2
         with:
-          bun-version: latest
-
+          bun-version: 1.4.4
       - name: Install dependencies
-        run: bun install
-
-      - name: Run tests
+        run: bun install --frozen-lockfile
+      - name: Install browsers
+        run: bunx --bun playwright install --with-deps chromium firefox webkit
+      - name: Unit tests
         run: bun test
-
-      - name: Run linter
-        run: bunx biome check superfile.js
-
+      - name: TypeScript public API
+        run: bun run test:types
       - name: Build
         run: bun run build
+      - name: Browser contracts (Bun runner)
+        run: bun run test:browser
+      - name: Lint
+        run: bun run lint
+      - name: Failed browser traces
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-traces
+          path: test-results/
+          if-no-files-found: ignore

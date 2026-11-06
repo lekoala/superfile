@@ -1,184 +1,35 @@
-# Configuration Guide
+# Configuration
 
-Superfile is configured entirely through HTML data attributes. No JavaScript configuration required!
+There is no implicit 1920px resize in V2. Without image options, originals pass through unchanged. Image configuration requires an explicitly installed `createImageProcessor()` from `superfile/image`.
 
-## Data Attributes
+## Image options
 
-### `data-max-width` / `data-max-height`
+| HTML attribute | Factory option | Contract |
+| --- | --- | --- |
+| `data-max-width` | `maxWidth` | Positive integer maximum width |
+| `data-max-height` | `maxHeight` | Positive integer maximum height |
+| `data-ratio` | `ratio` | Positive ratio, e.g. `1:1`, `16:9`, `4/3` or `1.5` |
+| `data-quality` | `quality` | Number 0–1, or integer percentage 0–100 |
+| `data-format` | `format` | `image/jpeg`, `image/png` or `image/webp` |
+| — | `fallback` | `block` (default), or explicit `original` |
+| — | `background` | Canvas fill color for explicitly encoded JPEG, default white |
 
-Set maximum dimensions for the resized image. Aspect ratio is preserved.
+Factory options override HTML attributes. Configuration is read at initialization, not live-observed. Invalid options throw before the input is enhanced. Numeric values are parsed completely: `0.85` works; `85px`, empty strings and invalid ratios fail.
 
-```html
-<input type="file" data-max-width="800" data-max-height="600" />
-```
+Dimensions, crop and conversion are mandatory constraints for applicable image files. Already conforming images do not need re-encoding. Quality is opportunistic: if encoding fails or makes an otherwise conforming image larger, the original is kept. An output needed to satisfy crop/size/format constraints is kept even when it is larger. No enlargement is performed, apart from unavoidable single-pixel rounding on tiny output sizes.
 
-| Default | Type | Example |
-|---------|------|---------|
-| 1920 | Integer (pixels) | `data-max-width="800"` |
+The image processor handles JPEG, non-animated PNG and non-animated WebP. GIF, animated PNG/WebP, SVG, HEIC and other unsupported image formats are preserved for opportunistic work; mandatory transformations reject unless `fallback: 'original'` was explicitly enabled. PDF and other non-image files always pass through unchanged, subject to general validation.
 
-### `data-ratio`
+Input MIME types are hints; neither they nor `accept` prove the actual content is safe. A decoder or encoder failure rejects a mandatory operation. If a browser returns another MIME type instead of the requested encoder, that output is rejected. Explicit conversion updates both MIME and filename extension. PNG transparency is retained unless JPEG conversion was requested; JPEG uses the configured background.
 
-Crop the image to a specific aspect ratio from the center. Supports `:` or `/` separators.
+Fallbacks are visible through `entry.decision`: `not-applicable`, `already-conforming`, `unsupported-original`, `larger-original`, `encoding-failed-original`, `fallback-original`, or `transformed`.
 
-```html
-<!-- Square (avatars) -->
-<input type="file" data-ratio="1:1" />
+## Core options and native attributes
 
-<!-- 16:9 (widescreen) -->
-<input type="file" data-ratio="16:9" />
+`maxSize` limits each original file in bytes. `validate(file, context)` is an optional synchronous or async callback: throw an error to reject the batch. `accept` remains the native picker hint; applications needing additional client restrictions can enforce them through `validate`. All restrictions also belong on the server.
 
-<!-- Alternative syntax -->
-<input type="file" data-ratio="4/3" />
-```
+`multiple`, `name`, `required`, `disabled`, `form`, `capture`, form method/encoding and submit button overrides retain their HTML meanings. Selection/drop replace; additions use the explicit API. For a single input, dropping several files keeps the first; `addFiles()` instead rejects a multi-file argument to expose programming errors.
 
-Common ratios:
-- `1:1` - Square (avatars, profile pictures)
-- `4:3` - Standard photo
-- `16:9` - Widescreen, video
-- `3:2` - Classic photo
-- `2.39:1` - Cinema widescreen
+`webkitdirectory` is native passthrough only. No image transformation, reconstructed FileList, programmatic additions or individual removal. Relative paths remain browser-provided. Mandatory image settings on a selected directory produce a blocking error rather than silently discarding paths. Opportunistic quality settings are skipped for directories. `clear()` and reset remain available.
 
-### `data-quality`
-
-JPEG compression quality. Accepts 0-1 decimal or 0-100 integer (converted automatically).
-
-```html
-<!-- Decimal (0.0 - 1.0) -->
-<input type="file" data-quality="0.85" />
-
-<!-- Percentage (1-100) -->
-<input type="file" data-quality="85" />
-```
-
-| Default | Range | Notes |
-|---------|-------|-------|
-| 1 (100%) | 0.0 - 1.0 or 1-100 | Lower = smaller file, more compression artifacts |
-
-### `data-disable-resize`
-
-Skip image resizing entirely. Original files are kept unchanged (except EXIF rotation).
-
-```html
-<input type="file" data-disable-resize="1" />
-```
-
-Useful when:
-- You want original file sizes
-- Files are pre-optimized
-- Resizing is handled server-side
-
-### `data-hide-clear`
-
-Hide the clear button until a preview is shown.
-
-```html
-<input type="file" data-hide-clear="1" />
-```
-
-Useful for:
-- Cleaner initial UI
-- Avatar uploaders
-- Mobile interfaces
-
-## HTML Attributes
-
-### `accept`
-
-Standard HTML attribute to limit file types:
-
-```html
-<!-- Only images -->
-<input type="file" accept="image/*" />
-
-<!-- Specific formats -->
-<input type="file" accept=".jpg,.jpeg,.png,.webp" />
-
-<!-- Multiple types -->
-<input type="file" accept="image/*,.pdf,.doc" />
-```
-
-### `multiple`
-
-Allow multiple file selection:
-
-```html
-<input type="file" multiple accept="image/*" />
-```
-
-### `directory` / `webkitdirectory`
-
-Allow directory upload (with `multiple`):
-
-```html
-<input type="file" multiple directory webkitdirectory accept="image/*" />
-```
-
-## Complete Example
-
-```html
-<div class="superfile avatar-upload">
-  <label>Profile Photo</label>
-  <div class="input-group">
-    <input 
-      type="file" 
-      accept="image/*"
-      data-max-width="400"
-      data-max-height="400"
-      data-ratio="1:1"
-      data-quality="90"
-      data-hide-clear="1"
-    />
-    <button class="superfile-clear" type="button">×</button>
-  </div>
-  <img class="superfile-preview" alt="Preview" />
-</div>
-```
-
-This creates:
-- Square crop from center (1:1 ratio)
-- 400x400 max size (retina: 800x800 for 2x displays)
-- 90% JPEG quality
-- Hidden clear button until image selected
-- Image preview below input
-
-## CSS States
-
-Superfile adds CSS classes you can style:
-
-| Class | When Applied |
-|-------|--------------|
-| `.superfile-ready` | After initialization |
-| `.superfile-preview-active` | When preview is showing |
-| `.superfile-drag` | During drag hover |
-| `.superfile-clone` | On cloned preview elements (multiple files) |
-
-```css
-/* Initial state - prevent FOUC */
-.superfile:not(.superfile-ready) {
-  visibility: hidden;
-}
-
-/* Drag highlight */
-.superfile-drag {
-  background: palegoldenrod;
-}
-
-/* Preview visible */
-.superfile-preview-active .superfile-preview {
-  border: 2px solid #007bff;
-}
-```
-
-## Preset Value Example
-
-Show an existing image as the initial state:
-
-```html
-<div class="superfile">
-  <input type="file" accept="image/*" data-max-width="200" data-ratio="1:1" />
-  <img src="/existing-avatar.jpg" class="superfile-preview" />
-  <button class="superfile-clear">Clear</button>
-</div>
-```
-
-The preview will show immediately on page load, and clear button works as expected.
+No stylesheet is required. The optional drop wrapper receives `.superfile-drag` while dragging. Do not hide the input while waiting for JavaScript: native fallback and keyboard access must remain available.
