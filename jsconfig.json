@@ -19,6 +19,7 @@
   "include": [
     "superfile.js",
     "image.js",
+    "exif.js",
     "previews.js",
     "src/**/*.js"
   ],

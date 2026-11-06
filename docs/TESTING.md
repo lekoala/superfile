@@ -22,7 +22,7 @@ Automated projects: Chromium, Firefox and WebKit on desktop. Passing on Playwrig
 Release verification still needed:
 
 - Real iOS Safari and Android browser: camera photos, native capture, directory availability, large images and memory pressure.
-- Representative ICC/wide-gamut images and EXIF orientations beyond the automated fixture.
+- Representative ICC/wide-gamut images and real-device camera files. EXIF module tests cover all eight orientations with pixel assertions, systematic JPEG/PNG/WebP removal, JPEG preservation, GPS opt-in and blocking normalization failures.
 - Assistive technology checks for error announcements and input/drop/removal workflows.
 - A concrete minimum-version policy tested on the chosen older browser versions. Current-engine success alone does not establish that policy.
 

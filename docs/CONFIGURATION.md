@@ -13,6 +13,7 @@ There is no implicit 1920px resize in V2. Without image options, originals pass 
 | `data-format` | `format` | `image/jpeg`, `image/png` or `image/webp` |
 | — | `fallback` | `block` (default), or explicit `original` |
 | — | `background` | Canvas fill color for explicitly encoded JPEG, default white |
+| — | `reencode` | Boolean, default false; force canvas encoding even for conforming/larger images |
 
 Factory options override HTML attributes. Configuration is read at initialization, not live-observed. Invalid options throw before the input is enhanced. Numeric values are parsed completely: `0.85` works; `85px`, empty strings and invalid ratios fail.
 
@@ -23,6 +24,8 @@ The image processor handles JPEG, non-animated PNG and non-animated WebP. GIF, a
 Input MIME types are hints; neither they nor `accept` prove the actual content is safe. A decoder or encoder failure rejects a mandatory operation. If a browser returns another MIME type instead of the requested encoder, that output is rejected. Explicit conversion updates both MIME and filename extension. PNG transparency is retained unless JPEG conversion was requested; JPEG uses the configured background.
 
 Fallbacks are visible through `entry.decision`: `not-applicable`, `already-conforming`, `unsupported-original`, `larger-original`, `encoding-failed-original`, `fallback-original`, or `transformed`.
+
+`reencode: true` makes encoding mandatory even without geometry/format changes. It may increase file size; it does not itself promise EXIF removal. Wrap with [`createExifProcessor`](EXIF.md) for a verified EXIF policy that also covers image-processor fallbacks.
 
 ## Core options and native attributes
 

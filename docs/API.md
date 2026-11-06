@@ -83,6 +83,10 @@ Reset, clear, disposal, reassignment of a control to another form, removal of th
 
 The native guard does not intercept `form.submit()` or arbitrary manual `FormData` construction. Native validation can prevent a submit event from being raised at all, e.g. a required field still empty during a programmatic addition. In that case there is no submit intent to replay; submit after readiness. See [external transports](EXTENDING.md).
 
+## EXIF processor
+
+`createExifProcessor({ mode, process, codec, preserveGPS, onMetadata })` from `superfile/exif` wraps an optional image processor. Removal is the default and is enforced after every image result; failed enforcement blocks. JPEG preservation and extraction use an explicitly supplied codec. `readExif(file, codec)` extracts original JPEG tags/GPS/time without processing. See [EXIF options, supported formats and guarantees](EXIF.md).
+
 ## Previews
 
 ```js

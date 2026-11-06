@@ -15,7 +15,7 @@ V2 is a major API change. It keeps the native input and local preparation model 
 | `inputElement` | `input` |
 | `processFiles`, `resizeImage`, DOM internals/subclass overrides | Public `process` function and entry snapshots |
 | Built-in webcam UI | Deferred optional module; native `capture` still works |
-| `superfile-exif.js` subclass | V1-only addon; preservation deferred in V2 |
+| `superfile-exif.js` subclass | Replace with `createExifProcessor` from `superfile/exif`; see [EXIF](EXIF.md) |
 | Native `change` sometimes used as completion | Await `whenReady()` or listen to `superfile:ready` |
 | Files replaced by matching filename | Stable per-entry IDs, duplicate names preserved |
 
@@ -33,4 +33,4 @@ Remove CSS such as `.superfile:not(.superfile-ready) { visibility: hidden; }`. V
 
 A failed transformation no longer risks silently submitting originals or a partially prepared selection. The prior valid FileList is restored and submission blocks until a new batch succeeds or the field is cleared. Audit consumers that previously sent FormData in a native change handler: they must await readiness.
 
-The package is ESM with public entries `superfile`, `superfile/image`, `superfile/previews`. The standalone `superfile.min.js` contains only core behavior. Relative source imports work directly in modern browsers. No image or preview module is loaded automatically.
+The package is ESM with public entries `superfile`, `superfile/image`, `superfile/exif`, `superfile/previews`. The standalone `superfile.min.js` contains only core behavior. Relative source imports work directly in modern browsers. No image, EXIF or preview module is loaded automatically.

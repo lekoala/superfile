@@ -16,6 +16,7 @@ test("quality and ratio parse completely, invalid config is rejected", () => {
 		{ maxHeight: "20px" },
 		{ quality: "" },
 		{ format: "image/gif" },
+		{ reencode: "true" },
 	])
 		assert.throws(() => parseImageOptions(options));
 });

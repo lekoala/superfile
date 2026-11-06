@@ -9,7 +9,7 @@
     "start": "bun test/server.js",
     "test": "bun test",
     "test:browser": "bun ./node_modules/@playwright/test/cli.js test",
-    "lint": "biome check src superfile.js image.js previews.js test/browser test/unit test/server.js playwright.config.js test/types superfile.d.ts image.d.ts previews.d.ts",
+    "lint": "biome check src superfile.js image.js previews.js exif.js test/browser test/unit test/server.js playwright.config.js test/types superfile.d.ts image.d.ts previews.d.ts exif.d.ts",
     "prepack": "bun run build",
     "test:types": "tsc --project jsconfig.json && tsc --noEmit --strict --module nodenext --moduleResolution nodenext --target es2022 --lib es2022,dom test/types/api.ts"
   },
@@ -20,6 +20,7 @@
   "devDependencies": {
     "@biomejs/biome": "^2.4.12",
     "@playwright/test": "^1.65.0",
+    "piexifjs": "^1.0.6",
     "typescript": "^7.0.2"
   },
   "keywords": [
@@ -42,6 +43,11 @@
       "import": "./image.js",
       "default": "./image.js"
     },
+    "./exif": {
+      "types": "./exif.d.ts",
+      "import": "./exif.js",
+      "default": "./exif.js"
+    },
     "./previews": {
       "types": "./previews.d.ts",
       "import": "./previews.js",
@@ -52,6 +58,7 @@
     "superfile.js",
     "superfile.min.js",
     "image.js",
+    "exif.js",
     "previews.js",
     "src/",
     "docs/",
@@ -59,6 +66,7 @@
     "LICENSE",
     "superfile.d.ts",
     "image.d.ts",
+    "exif.d.ts",
     "previews.d.ts"
   ],
   "types": "./superfile.d.ts"

@@ -16,6 +16,7 @@ const extensions = {
  * @property {string} background
  * @property {boolean} mandatory
  * @property {boolean} active
+ * @property {boolean} reencode
  */
 
 function number(value, name) {
@@ -37,7 +38,10 @@ export function parseImageOptions(options = {}) {
 		background: options.background ?? "#ffffff",
 		mandatory: false,
 		active: false,
+		reencode: options.reencode ?? false,
 	};
+	if (typeof config.reencode !== "boolean")
+		throw new TypeError("reencode must be a boolean");
 	if (!["block", "original"].includes(config.fallback))
 		throw new TypeError("fallback must be block or original");
 	for (const key of ["maxWidth", "maxHeight"]) {
@@ -71,6 +75,7 @@ export function parseImageOptions(options = {}) {
 		config.format = options.format;
 	}
 	config.mandatory = !!(
+		config.reencode ||
 		config.maxWidth ||
 		config.maxHeight ||
 		config.ratio ||
@@ -178,8 +183,8 @@ async function transform(file, config, { input, signal }) {
 			geometry.sourceWidth !== width ||
 			geometry.sourceHeight !== height ||
 			type !== file.type;
-		required = changed;
-		if (!changed && config.quality === undefined)
+		required = changed || config.reencode;
+		if (!required && config.quality === undefined)
 			return { file, decision: "already-conforming" };
 		canvas = input.ownerDocument.createElement("canvas");
 		canvas.width = geometry.width;
@@ -216,7 +221,7 @@ async function transform(file, config, { input, signal }) {
 		abort(signal);
 		if (blob.type !== type)
 			throw new Error(`Browser cannot encode ${type} (returned ${blob.type})`);
-		if (!changed && blob.size >= file.size)
+		if (!required && blob.size >= file.size)
 			return { file, decision: "larger-original" };
 		const name =
 			blob.type === file.type
@@ -240,6 +245,12 @@ async function transform(file, config, { input, signal }) {
 			canvas.height = 0;
 		}
 	}
+}
+
+// Used by the EXIF policy after optional image processing. Do not reapply input
+// attributes (crop/format/etc.) while only normalizing the remaining orientation.
+export function normalizeImage(file, context) {
+	return transform(file, parseImageOptions({ reencode: true }), context);
 }
 
 /** Explicit image processor. HTML attributes are overridden by factory options. */

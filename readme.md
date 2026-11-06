@@ -38,7 +38,7 @@ import Superfile from 'superfile';
 const instances = Superfile.init(); // Only input[type=file][data-superfile]
 ```
 
-Image processing is explicit. Without image options, files stay unchanged. Previews are optional. No CSS class or preview element is required by the core. For direct browser imports, use relative URLs to `superfile.js`, `image.js` and `previews.js`; `superfile.min.js` is the standalone core bundle.
+Image processing is explicit. Without image options, files stay unchanged. Previews are optional. No CSS class or preview element is required by the core. For direct browser imports, use relative URLs to `superfile.js`, `image.js`, `exif.js` and `previews.js`; `superfile.min.js` is the standalone core bundle.
 
 Install with `bun add superfile` (or `npm install superfile`).
 
@@ -79,4 +79,6 @@ bun run build
 
 Browser contracts run in Chromium, Firefox and WebKit, including real multipart submissions to a local receiver. Real-device iOS/Android and wide-gamut/large-camera-image testing remain release checks. See [testing details](docs/TESTING.md).
 
-Camera capture UI, interactive crop and EXIF preservation addons are deferred. Native `capture` remains available. Directory inputs are native passthrough only, preserving relative paths without image processing or individual removal.
+For systematic EXIF handling, wrap the image processor with `createExifProcessor` from `superfile/exif`. It removes EXIF even from otherwise unchanged images, or explicitly preserves JPEG EXIF using an application-supplied codec. See [EXIF policies](docs/EXIF.md).
+
+Camera capture UI and interactive crop are deferred. Native `capture` remains available. Directory inputs are native passthrough only, preserving relative paths without image processing or individual removal.

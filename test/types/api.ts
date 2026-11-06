@@ -1,4 +1,5 @@
 import Superfile, { type SuperfileEventDetail } from "superfile";
+import { createExifProcessor, type ExifCodec, readExif } from "superfile/exif";
 import { createImageProcessor } from "superfile/image";
 import { connectPreviews } from "superfile/previews";
 
@@ -25,6 +26,19 @@ input.addEventListener("superfile:ready", (event) => {
 });
 previews.dispose();
 sf.dispose();
+const codec = {} as ExifCodec;
+createExifProcessor({
+	process: createImageProcessor({ maxWidth: 1200 }),
+	codec,
+	async onMetadata(metadata, original, { signal }) {
+		signal.throwIfAborted();
+		console.log(metadata?.gps?.lat, metadata?.timestamp, original.name);
+	},
+});
+createExifProcessor({ mode: "preserve", codec, preserveGPS: true });
+await readExif(new File([], "photo.jpg"), codec);
+// @ts-expect-error invalid policy
+createExifProcessor({ mode: "sometimes" });
 // @ts-expect-error unsupported conversion format
 createImageProcessor({ format: "image/gif" });
 // @ts-expect-error input must be a native file control

@@ -4,7 +4,7 @@
 
 Superfile owns local preparation and the native input. It never imports a transport, constructs FormData, sends HTTP, manages persisted server attachments or requires CSS. External transports consume `whenReady()`, entries and standard DOM events. Integration with Actual CSS belongs in that repository and is not a release gate here.
 
-Image handling is explicitly imported; previews are independent. The core has no image codec, image renderer, camera UI or interactive crop. There is no generic plugin system. The package exports core, image and previews; the only standalone minified build is the core.
+Image handling is explicitly imported; previews are independent. The core has no image codec, image renderer, camera UI or interactive crop. There is no generic plugin system. The package exports core, image, EXIF and previews; the only standalone minified build is the core.
 
 ## Invariants
 
@@ -25,4 +25,4 @@ Image handling is explicitly imported; previews are independent. The core has no
 
 Core selection, identity, lifecycle and submission coordination; explicit image resize/compression/center crop; optional simple/template previews; independent native and manual-transport demos; ESM exports, migration documentation, browser contract tests and CI.
 
-Deferred: camera module, EXIF preservation and interactive cropping. Real-device mobile, wide-gamut color and extreme-image-memory verification remain release checks. No release or publication is performed by implementing this contract.
+Deferred: camera module and interactive cropping. Optional EXIF removal and JPEG preservation are provided by `superfile/exif`; see [the EXIF policy contract](EXIF.md). Real-device mobile, wide-gamut color and extreme-image-memory verification remain release checks. No release or publication is performed by implementing this contract.
