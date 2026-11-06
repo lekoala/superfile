@@ -1,4 +1,5 @@
 import { createImageProcessor, normalizeImage } from "./image.js";
+import { detectImageType } from "./image-types.js";
 
 const jpeg = "image/jpeg";
 const png = "image/png";
@@ -206,9 +207,8 @@ function validateCodec(codec) {
 }
 
 function imageType(bytes, declared) {
-	if (matches(bytes, 0, [255, 216])) return jpeg;
-	if (matches(bytes, 0, [137, 80, 78, 71, 13, 10, 26, 10])) return png;
-	if (ascii(bytes, 0, "RIFF") && ascii(bytes, 8, "WEBP")) return webp;
+	const detected = detectImageType(bytes);
+	if (detected) return detected;
 	if (declared.startsWith("image/")) fail();
 	return null;
 }

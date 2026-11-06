@@ -21,6 +21,8 @@ Initialization validates configuration before installing listeners. Image attrib
 
 `Superfile.init(selector?, options?)` returns instances for matching inputs, reusing existing ones. Its default selector is `input[type=file][data-superfile]`. It does not automatically run on import. `Superfile.get(input)` returns the registered instance or `undefined`. Constructing a second instance explicitly throws.
 
+If initialization fails, instances created by that `init()` call are disposed; pre-existing instances remain registered. General options are validated before calling `process.configure(input)`, which must return a processor function. Custom configuration hooks must avoid external side effects: rollback cannot undo application-owned changes.
+
 ## Properties
 
 | Property | Meaning |
@@ -57,9 +59,13 @@ Both methods return `Promise<Entry[]>`, following the latest generation. They ca
 
 `clear()` synchronously empties the input, invalidates work, clears blocking errors and cancels a queued native submission. Existing readiness waits resolve to `[]`. It emits `cleared`, not `ready`.
 
+Use `sf.clear()` instead of assigning `input.value = ''`: direct assignments do not emit events and cannot synchronize entry snapshots. Native form reset is supported.
+
 `whenReady()` resolves with the ready entry snapshots. If another generation starts while it is pending, it follows that generation. A blocking error rejects; a later successful selection permits new calls to resolve. A resolved promise cannot track subsequent selections: construct FormData immediately after awaiting it, without introducing another asynchronous gap.
 
 `dispose()` is idempotent. It aborts pending work, rejects outstanding waits with `AbortError`, disconnects form/drop/input listeners and emits `disposed`. Previews connected through the standard helper are also disposed. If processing or an error was active, the last committed files are restored. The input remains usable as a native control. Methods other than repeat disposal cannot be used afterwards.
+
+Before `disposed` is emitted, entries are emptied and state becomes `ready`, meaning no work remains. This does not make the disposed instance reusable.
 
 ## Events
 
@@ -74,6 +80,8 @@ Events are CustomEvents dispatched on the input and bubble. All include `detail.
 | `superfile:disposed` | Instance destroyed |
 
 No synthetic `change` after preparation, no upload progress and no network-success events. Image fallback decisions are exposed on entries, not reported as blocking errors.
+
+A supported file drop emits one bubbling synthetic `change` with the raw selection before processors run. Use `whenReady()` for prepared files. File drag/drop defaults are canceled even when the input is disabled; disabled inputs do not select files. Drop events continue bubbling, so wrapper/document listeners can observe them. Programmatic `addFiles()` and `removeFile()` do not emit `change`.
 
 ## Native form submission
 

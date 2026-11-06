@@ -68,7 +68,7 @@ export function connectPreviews(
 			if (template) row.append(template.content.cloneNode(true));
 			else {
 				row.innerHTML =
-					'<img data-superfile-thumbnail width="64" height="64"><span data-superfile-name></span> <span data-superfile-size></span> <span data-superfile-error></span> <button type="button" data-superfile-remove>Remove</button>';
+					'<img data-superfile-thumbnail width="64" height="64"><span data-superfile-name></span> <span data-superfile-size></span> <span data-superfile-type></span> <span data-superfile-error></span> <button type="button" data-superfile-remove>Remove</button>';
 			}
 			const text = (selector, value) => {
 				for (const element of row.querySelectorAll(selector))
@@ -125,6 +125,7 @@ export function connectPreviews(
 		container.removeEventListener("click", remove);
 		container.replaceChildren();
 		container.removeAttribute("aria-busy");
+		live.textContent = "";
 		if (!status) live.remove();
 	};
 	sf.input.addEventListener("superfile:disposed", dispose);

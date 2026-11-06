@@ -33,4 +33,6 @@ Remove CSS such as `.superfile:not(.superfile-ready) { visibility: hidden; }`. V
 
 A failed transformation no longer risks silently submitting originals or a partially prepared selection. The prior valid FileList is restored and submission blocks until a new batch succeeds or the field is cleared. Audit consumers that previously sent FormData in a native change handler: they must await readiness.
 
+Drops emit a bubbling `change` for the raw selection before processing, with no second `change` on completion. Unlike V1, handled drop events continue bubbling. Use `sf.clear()` instead of directly assigning an empty `input.value` to keep entries synchronized.
+
 The package is ESM with public entries `superfile`, `superfile/image`, `superfile/exif`, `superfile/previews`. The standalone `superfile.min.js` contains only core behavior. Relative source imports work directly in modern browsers. No image, EXIF or preview module is loaded automatically.

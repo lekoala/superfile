@@ -1,3 +1,5 @@
+import { detectImageType } from "./image-types.js";
+
 const safeTypes = new Set(["image/jpeg", "image/png", "image/webp"]);
 const extensions = {
 	"image/jpeg": "jpg",
@@ -111,14 +113,14 @@ function abort(signal) {
 	signal?.throwIfAborted();
 }
 
-async function animated(file) {
-	if (file.type !== "image/png" && file.type !== "image/webp") return false;
+async function animated(file, type) {
+	if (type !== "image/png" && type !== "image/webp") return false;
 	const buffer = await file.arrayBuffer();
 	const bytes = new Uint8Array(buffer);
 	const data = new DataView(buffer);
 	const text = (offset) =>
 		String.fromCharCode(...bytes.subarray(offset, offset + 4));
-	const png = file.type === "image/png";
+	const png = type === "image/png";
 	let offset = png ? 8 : 12;
 	while (offset + 8 <= bytes.length) {
 		const size = data.getUint32(offset + (png ? 0 : 4), !png);
@@ -156,18 +158,29 @@ async function decode(file, view, signal) {
 
 async function transform(file, config, { input, signal }) {
 	abort(signal);
-	if (!config.active || !file.type.startsWith("image/"))
+	if (!config.active) return { file, decision: "not-applicable" };
+	const header = new Uint8Array(await file.slice(0, 12).arrayBuffer());
+	abort(signal);
+	const sourceType = detectImageType(header) || file.type;
+	if (!sourceType.startsWith("image/"))
 		return { file, decision: "not-applicable" };
-	if (!safeTypes.has(file.type) || (await animated(file))) {
+	if (!safeTypes.has(sourceType) || (await animated(file, sourceType))) {
 		if (config.mandatory)
 			throw new Error(
-				`Mandatory transformation is unavailable for ${file.type || "this format"} (possibly animated)`,
+				`Mandatory transformation is unavailable for ${sourceType} (possibly animated)`,
 			);
 		return { file, decision: "unsupported-original" };
 	}
 	abort(signal);
 	const view = input.ownerDocument.defaultView;
-	const image = await decode(file, view, signal);
+	const source =
+		sourceType === file.type
+			? file
+			: new view.File([file], file.name, {
+					type: sourceType,
+					lastModified: file.lastModified,
+				});
+	const image = await decode(source, view, signal);
 	let canvas;
 	let required = config.mandatory;
 	try {
@@ -176,13 +189,13 @@ async function transform(file, config, { input, signal }) {
 		const height = image.naturalHeight;
 		if (!width || !height) throw new Error("Image has no usable dimensions");
 		const geometry = imageGeometry(width, height, config);
-		const type = config.format || file.type;
+		const type = config.format || sourceType;
 		const changed =
 			geometry.width !== width ||
 			geometry.height !== height ||
 			geometry.sourceWidth !== width ||
 			geometry.sourceHeight !== height ||
-			type !== file.type;
+			type !== sourceType;
 		required = changed || config.reencode;
 		if (!required && config.quality === undefined)
 			return { file, decision: "already-conforming" };
@@ -224,7 +237,7 @@ async function transform(file, config, { input, signal }) {
 		if (!required && blob.size >= file.size)
 			return { file, decision: "larger-original" };
 		const name =
-			blob.type === file.type
+			blob.type === sourceType
 				? file.name
 				: `${file.name.replace(/\.[^.]*$/, "")}.${extensions[blob.type]}`;
 		return {

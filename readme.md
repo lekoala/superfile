@@ -65,6 +65,8 @@ Superfile emits bubbling `superfile:processing`, `superfile:ready`, `superfile:e
 
 ## Documentation and development
 
+The commands below run from a clone of this repository. The published package does not include the development server, demo or test fixtures.
+
 [API](docs/API.md) · [Configuration](docs/CONFIGURATION.md) · [Migration from V1](docs/MIGRATION.md) · [Image metadata](docs/EXIF.md) · [Custom processors and transports](docs/EXTENDING.md) · [Contract and verification](docs/CONTRACT.md)
 
 ```sh

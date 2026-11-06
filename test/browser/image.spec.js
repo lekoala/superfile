@@ -59,6 +59,40 @@ test.beforeEach(async ({ page }) => {
 	});
 });
 
+test("image signatures enforce resize despite missing or incorrect MIME", async ({
+	page,
+}) => {
+	const results = await page.evaluate(async () => {
+		const results = [];
+		for (const format of ["image/png", "image/jpeg", "image/webp"]) {
+			const image = await window.makeImage(format, 100, 50);
+			for (const type of ["", "application/octet-stream", "image/gif"]) {
+				const input = document.createElement("input");
+				input.type = "file";
+				const sf = new window.api.Superfile(input, {
+					process: window.api.createImageProcessor({ maxWidth: 20 }),
+				});
+				await sf.addFiles([new File([image], "photo.bin", { type })]);
+				results.push({
+					width: (await window.inspect(sf.files[0])).width,
+					type: sf.files[0].type,
+					expected: image.type,
+					decision: sf.entries[0].decision,
+				});
+				sf.dispose();
+			}
+		}
+		return results;
+	});
+	for (const result of results)
+		expect(result).toEqual({
+			width: 20,
+			type: result.expected,
+			expected: result.expected,
+			decision: "transformed",
+		});
+});
+
 test("no image options preserves original; resize never enlarges; PDF passes unchanged", async ({
 	page,
 }) => {

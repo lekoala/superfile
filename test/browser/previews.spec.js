@@ -37,6 +37,9 @@ test("PDF uses neutral preview; names are text and removal works by keyboard", a
 		"<b>report</b>.pdf",
 	);
 	await expect(page.locator("#previews b")).toHaveCount(0);
+	await expect(page.locator("[data-superfile-type]")).toHaveText(
+		"application/pdf",
+	);
 	await expect(page.locator("[data-superfile-thumbnail]")).toBeHidden();
 	const button = page.getByRole("button", { name: "Remove <b>report</b>.pdf" });
 	await button.focus();

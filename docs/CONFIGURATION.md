@@ -23,6 +23,8 @@ The image processor handles JPEG, non-animated PNG and non-animated WebP. GIF, a
 
 Input MIME types are hints; neither they nor `accept` prove the actual content is safe. A decoder or encoder failure rejects a mandatory operation. If a browser returns another MIME type instead of the requested encoder, that output is rejected. Explicit conversion updates both MIME and filename extension. PNG transparency is retained unless JPEG conversion was requested; JPEG uses the configured background.
 
+When processing is active, JPEG/PNG/WebP signatures take precedence over declared MIME, including empty MIME and `application/octet-stream`. Decoding and animation checks use the detected type. Originals kept without encoding retain their original MIME; encoded outputs use the actual encoder MIME. Unknown signatures use the declared MIME: unsupported `image/*` follows the fallback policy, while other files pass through. Unsupported images mislabeled as non-images cannot be identified by this limited detector; enforce an application/server allowlist when required.
+
 Fallbacks are visible through `entry.decision`: `not-applicable`, `already-conforming`, `unsupported-original`, `larger-original`, `encoding-failed-original`, `fallback-original`, or `transformed`.
 
 `reencode: true` makes encoding mandatory even without geometry/format changes. It may increase file size; it does not itself promise EXIF removal. Wrap with [`createExifProcessor`](EXIF.md) for a verified EXIF policy that also covers image-processor fallbacks.

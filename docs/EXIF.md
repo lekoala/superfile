@@ -27,6 +27,8 @@ Recognized JPEG/PNG/WebP signatures are checked even on files with a missing or 
 
 The result decision is `exif-removed`, including when no EXIF was present. If no pixels/bytes/MIME needed changing, the original File can be reused.
 
+Container inspection is deliberately strict, even when no EXIF is present: JPEG must end exactly at EOI, PNG at IEND, and WebP must match its RIFF length with complete chunks. Trailing padding or appended data rejects the batch. Such files require normalization before this policy can accept them; this release does not silently preserve or discard uninspected trailing bytes.
+
 ## Extract metadata or preserve JPEG EXIF
 
 Extraction and preservation accept an application-supplied [piexifjs-compatible codec](https://piexifjs.readthedocs.io/en/latest/functions.html). Superfile never fetches or imports this dependency. Install `piexifjs` in the consuming application or provide its browser global.

@@ -31,12 +31,9 @@ export default class Superfile {
 			throw new TypeError(
 				"Image options require an explicit processor from superfile/image",
 			);
-		if (options.process && typeof options.process !== "function")
+		if (options.process !== undefined && typeof options.process !== "function")
 			throw new TypeError("process must be a function");
 		this._input = input;
-		this._process = options.process?.configure
-			? options.process.configure(input)
-			: options.process;
 		if (
 			options.maxSize !== undefined &&
 			(!Number.isFinite(options.maxSize) || options.maxSize < 0)
@@ -44,7 +41,7 @@ export default class Superfile {
 			throw new TypeError("maxSize must be a non-negative byte count");
 		this._maxSize = options.maxSize;
 		this._validate = options.validate;
-		if (this._validate && typeof this._validate !== "function")
+		if (this._validate !== undefined && typeof this._validate !== "function")
 			throw new TypeError("validate must be a function");
 		const zone =
 			options.dropTarget ||
@@ -52,6 +49,16 @@ export default class Superfile {
 			input;
 		if (!(zone instanceof view.HTMLElement))
 			throw new TypeError("dropTarget must be an HTML element");
+		if (
+			options.process?.configure !== undefined &&
+			typeof options.process.configure !== "function"
+		)
+			throw new TypeError("process.configure must be a function");
+		this._process = options.process?.configure
+			? options.process.configure(input)
+			: options.process;
+		if (options.process !== undefined && typeof this._process !== "function")
+			throw new TypeError("process.configure must return a function");
 		this._entries = [];
 		this._committed = [];
 		this._validFiles = input.files;
@@ -65,7 +72,10 @@ export default class Superfile {
 			target.addEventListener(type, handler);
 			this._listeners.push(() => target.removeEventListener(type, handler));
 		};
-		listen(input, "change", () => this._start(entriesFor(input.files), true));
+		listen(input, "change", (event) => {
+			if (event !== this._dropChange)
+				this._start(entriesFor(input.files), true);
+		});
 		if (zone !== input) {
 			for (const button of zone.querySelectorAll("[data-superfile-clear]")) {
 				listen(button, "click", (event) => {
@@ -76,13 +86,17 @@ export default class Superfile {
 		}
 		for (const type of ["dragover", "dragleave", "drop"]) {
 			listen(zone, type, (event) => {
-				if (input.matches(":disabled") || !event.dataTransfer) return;
+				if (!event.dataTransfer) return;
 				if (type === "dragleave") {
 					zone.classList.remove("superfile-drag");
 					return;
 				}
 				if (!Array.from(event.dataTransfer.types).includes("Files")) return;
 				event.preventDefault();
+				if (input.matches(":disabled")) {
+					zone.classList.remove("superfile-drag");
+					return;
+				}
 				if (type === "dragover") {
 					event.dataTransfer.dropEffect = "copy";
 					zone.classList.add("superfile-drag");
@@ -91,7 +105,7 @@ export default class Superfile {
 					if (input.hasAttribute("webkitdirectory")) return;
 					const files = Array.from(event.dataTransfer.files);
 					if (!input.multiple && files.length > 1) files.splice(1);
-					this._start(entriesFor(files));
+					this._start(entriesFor(files), false, true);
 				}
 			});
 		}
@@ -104,10 +118,18 @@ export default class Superfile {
 		return instances.get(input);
 	}
 	static init(selector = "input[type=file][data-superfile]", options = {}) {
-		return Array.from(
-			document.querySelectorAll(selector),
-			(input) => instances.get(input) || new Superfile(input, options),
-		);
+		const created = [];
+		try {
+			return Array.from(document.querySelectorAll(selector), (input) => {
+				if (instances.has(input)) return instances.get(input);
+				const instance = new Superfile(input, options);
+				created.push(instance);
+				return instance;
+			});
+		} catch (error) {
+			for (const instance of created) instance.dispose();
+			throw error;
+		}
 	}
 	get input() {
 		return this._input;
@@ -152,10 +174,13 @@ export default class Superfile {
 		const transfer = new this.input.ownerDocument.defaultView.DataTransfer();
 		for (const file of files) transfer.items.add(file);
 		this.input.files = transfer.files;
-		if (this.input.files.length !== files.length)
+		if (
+			this.input.files.length !== files.length ||
+			files.some((file, index) => this.input.files[index] !== file)
+		)
 			throw new Error("This browser cannot replace input.files");
 	}
-	_start(entries, native = false) {
+	_start(entries, native = false, dropped = false) {
 		this._assertAlive();
 		syncForm(this);
 		this._controller?.abort();
@@ -176,6 +201,22 @@ export default class Superfile {
 			if (!current()) return;
 			let entry;
 			try {
+				if (dropped) {
+					this._write(this._entries.map((item) => item.original));
+					const event = new this.input.ownerDocument.defaultView.Event(
+						"change",
+						{
+							bubbles: true,
+						},
+					);
+					this._dropChange = event;
+					try {
+						this.input.dispatchEvent(event);
+					} finally {
+						this._dropChange = null;
+					}
+					if (!current()) return;
+				}
 				const directory = this.input.hasAttribute("webkitdirectory");
 				if (directory && (!native || this._process?.mandatory))
 					throw new Error(
@@ -216,6 +257,7 @@ export default class Superfile {
 					entry.status = "ready";
 				}
 				if (!current()) return;
+				entry = null;
 				if (!native || this._entries.some((item) => item.transformed))
 					this._write(this._entries.map((item) => item.file));
 				this._validFiles = this.input.files;
@@ -316,9 +358,11 @@ export default class Superfile {
 				this.input.value = "";
 			}
 		}
-		this._emit("disposed");
 		this._entries = [];
 		this._committed = [];
+		this._state = "ready";
+		this._error = null;
+		this._emit("disposed");
 		this._validFiles = null;
 		this._process = null;
 		this._validate = null;

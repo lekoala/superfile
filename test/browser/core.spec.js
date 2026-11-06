@@ -5,6 +5,197 @@ test.beforeEach(async ({ page }) => {
 	await page.waitForFunction(() => window.api);
 });
 
+test("init rolls back new instances and preserves existing instances", async ({
+	page,
+}) => {
+	expect(
+		await page.evaluate(() => {
+			const existing = new window.api.Superfile(
+				document.querySelector("#external"),
+			);
+			const invalid = document.createElement("input");
+			invalid.type = "file";
+			invalid.dataset.maxWidth = "20";
+			document.body.append(invalid);
+			let failed = false;
+			try {
+				window.api.Superfile.init("input[type=file]");
+			} catch {
+				failed = true;
+			}
+			return {
+				failed,
+				rolledBack: !window.api.Superfile.get(document.querySelector("#files")),
+				preserved: window.api.Superfile.get(existing.input) === existing,
+				invalid: !window.api.Superfile.get(invalid),
+			};
+		}),
+	).toEqual({ failed: true, rolledBack: true, preserved: true, invalid: true });
+});
+
+test("configuration is validated before configure and rejects invalid factories", async ({
+	page,
+}) => {
+	expect(
+		await page.evaluate(() => {
+			const input = document.querySelector("#files");
+			let calls = 0;
+			const process = (file) => file;
+			process.configure = () => {
+				calls++;
+				return undefined;
+			};
+			const errors = [];
+			for (const options of [
+				{ process, maxSize: -1 },
+				{ process, validate: true },
+				{ process, dropTarget: {} },
+				{ process },
+			]) {
+				try {
+					new window.api.Superfile(input, options);
+				} catch (error) {
+					errors.push(error.message);
+				}
+			}
+			return { calls, errors, registered: !!window.api.Superfile.get(input) };
+		}),
+	).toEqual({
+		calls: 1,
+		errors: [
+			"maxSize must be a non-negative byte count",
+			"validate must be a function",
+			"dropTarget must be an HTML element",
+			"process.configure must return a function",
+		],
+		registered: false,
+	});
+});
+
+test("drop emits one bubbling raw change before preparation and remains observable", async ({
+	page,
+}) => {
+	expect(
+		await page.evaluate(async () => {
+			const input = document.querySelector("#files");
+			const observed = [];
+			const sf = new window.api.Superfile(input, {
+				process: (file) => {
+					observed.push("process");
+					return new File(["prepared"], file.name);
+				},
+			});
+			document.addEventListener("change", (event) => {
+				if (event.target === input)
+					observed.push(`change:${input.files[0].size}`);
+			});
+			document.addEventListener("drop", () => observed.push("drop"));
+			const dataTransfer = new DataTransfer();
+			dataTransfer.items.add(new File(["raw"], "raw.txt"));
+			input.dispatchEvent(
+				new DragEvent("drop", {
+					dataTransfer,
+					bubbles: true,
+					cancelable: true,
+				}),
+			);
+			await sf.whenReady();
+			return {
+				observed,
+				generation: sf.generation,
+				content: await sf.files[0].text(),
+			};
+		}),
+	).toEqual({
+		observed: ["drop", "change:3", "process"],
+		generation: 1,
+		content: "prepared",
+	});
+});
+
+test("disabled drops are canceled without selecting files", async ({
+	page,
+}) => {
+	expect(
+		await page.evaluate(() => {
+			const input = document.querySelector("#files");
+			const sf = new window.api.Superfile(input);
+			input.disabled = true;
+			const dataTransfer = new DataTransfer();
+			dataTransfer.items.add(new File(["a"], "a.txt"));
+			const event = new DragEvent("drop", { dataTransfer, cancelable: true });
+			input.dispatchEvent(event);
+			return {
+				canceled: event.defaultPrevented,
+				count: sf.files.length,
+				state: sf.state,
+			};
+		}),
+	).toEqual({ canceled: true, count: 0, state: "ready" });
+});
+
+test("commit failures have a null batch id, including ignored same-length writes", async ({
+	page,
+}) => {
+	expect(
+		await page.evaluate(async () => {
+			const input = document.querySelector("#files");
+			const sf = new window.api.Superfile(input);
+			await sf.addFiles([new File(["old"], "same.txt")]);
+			const previous = input.files;
+			input.multiple = false;
+			Object.defineProperty(input, "files", {
+				get: () => previous,
+				set: () => {},
+			});
+			let detail;
+			input.addEventListener("superfile:error", (event) => {
+				detail = event.detail;
+			});
+			try {
+				await sf.addFiles([new File(["new"], "same.txt")]);
+			} catch {}
+			return {
+				id: detail.id,
+				state: sf.state,
+				entryErrors: sf.entries.filter((entry) => entry.error).length,
+				content: await sf.files[0].text(),
+			};
+		}),
+	).toEqual({ id: null, state: "error", entryErrors: 0, content: "old" });
+});
+
+test("dispose clears processing state and event snapshots", async ({
+	page,
+}) => {
+	expect(
+		await page.evaluate(async () => {
+			const sf = new window.api.Superfile(document.querySelector("#files"), {
+				process: () => new Promise(() => {}),
+			});
+			let snapshot;
+			sf.input.addEventListener("superfile:disposed", (event) => {
+				snapshot = { state: sf.state, count: event.detail.entries.length };
+			});
+			const wait = sf
+				.addFiles([new File(["a"], "a.txt")])
+				.catch((error) => error.name);
+			sf.dispose();
+			return {
+				snapshot,
+				state: sf.state,
+				count: sf.entries.length,
+				rejection: await wait,
+			};
+		}),
+	).toEqual({
+		snapshot: { state: "ready", count: 0 },
+		state: "ready",
+		count: 0,
+		rejection: "AbortError",
+	});
+});
+
 async function initialize(page, delay = 0) {
 	await page.evaluate((delay) => {
 		const input = document.querySelector("#files");
