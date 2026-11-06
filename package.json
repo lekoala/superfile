@@ -7,6 +7,8 @@
     "build": "bun build ./superfile.js --target browser --minify --outfile ./superfile.min.js",
     "watch": "bun run build --watch",
     "start": "bun test/server.js",
+    "stop": "bun scripts/stop-server.js",
+    "restart": "bun run stop && bun run start",
     "test": "bun test",
     "test:browser": "bun ./node_modules/@playwright/test/cli.js test",
     "lint": "biome check src superfile.js image.js previews.js exif.js test/browser test/unit test/server.js playwright.config.js test/types superfile.d.ts image.d.ts previews.d.ts exif.d.ts",

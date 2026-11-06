@@ -72,6 +72,8 @@ The commands below run from a clone of this repository. The published package do
 ```sh
 bun install
 bun run start                  # Open http://127.0.0.1:4178/
+bun run stop                   # Kill the listener on port 4178 if already running
+bun run restart                # Stop, then start the development server
 bun test                       # Unit tests
 bunx --bun playwright install  # Install browser engines once
 bun run test:browser            # Playwright runner under Bun
